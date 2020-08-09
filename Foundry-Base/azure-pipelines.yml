@@ -1,0 +1,39 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: Azure-Foundry-Variable-Group
+
+steps:
+- task: TerraformInstaller@0
+  inputs:
+    terraformVersion: 'latest'
+  displayName: 'Terraform Install'
+
+- script: |
+    terraform init \
+    -backend-config="storage_account_name=$(backend_storage_account_name)" \
+    -backend-config="container_name=$(backend_container_name)" \
+    -backend-config="key=$(foundry_project_backend_key)" \
+    -backend-config="access_key=$(ARM_ACCESS_KEY)"
+  displayName: 'Terraform Init'
+
+- script: |
+    terraform plan \
+    -var="personal_access_token=$(PERSONAL_ACCESS_TOKEN)" \
+    -var="org_service_url=$(ORG_SERVICE_URL)" \
+    -out=foundryplan
+  displayName: 'Terraform Plan'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.Repository.LocalPath)/foundryplan'
+    ArtifactName: 'Applied_Terraform_Plan'
+    publishLocation: 'Container'
+
+- script: |
+    terraform apply "foundryplan"
+  displayName: 'Terraform Apply'
