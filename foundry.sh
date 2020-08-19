@@ -23,7 +23,7 @@ do
         u) azureDevopsUsername=${OPTARG};;
         a) azureDevopsURL=${OPTARG};;
         p) azureDevopsPAT=${OPTARG};;
-        d) destroy=${OPTARG};;
+        d) destroy=${OPTARG};; #TODO
     esac
 done
 
@@ -96,7 +96,7 @@ do
     fi
     echo
 done
-#update string to match case
+# update string to match case
 orgLower=$(echo "$orgName" | awk '{print tolower($0)}')
 orgUpper=$(echo "$orgName" | awk '{print toupper($0)}')
 echo "All variables provided"
@@ -153,17 +153,35 @@ az lock create --name "azure-foundry-storage-lock" --resource-group "${orgUpper}
 backend_storage_account_key=$(az storage account keys list -g "${orgUpper}-AF-STATE-RG" -n "${orgLower}afstate" | jq -r .[1].value;)
 export ARM_ACCESS_KEY=$backend_storage_account_key
 
-
 azureFoundry_Service_Principal=$(az ad sp create-for-rbac --name http://azure-foundry-parent-sp --skip-assignment)
-while ! az role assignment create --assignee http://azure-foundry-parent-sp --role "Owner" --scope "/providers/Microsoft.Management/managementGroups/$tenantId" #GRS is a bit better for safety of state data
+while ! az role assignment create --assignee http://azure-foundry-parent-sp --role "Owner" --scope "/providers/Microsoft.Management/managementGroups/$tenantId" 
 do
     echo "Waiting for service principal replication" #sometimes az cli is too slow 
 done
 
+# Uses Azure AD Graph API over the Microsoft Graph API, as this is currently required for Terraform support. 
+# AZ Cli still uses Azure AD Graph for 'az ad app/sp' requests with 'az rest' to be used for MS Graph. 
+# https://github.com/Azure/azure-cli/issues/12946
+# https://www.terraform.io/docs/providers/azuread/guides/service_principal_configuration.html#method-2-api-access-with-admin-consent
+
+#get Azure AD Graph API permissions
+export azure_ad_graph_application=$(az ad sp list --display-name 'Windows Azure Active Directory')
+
+#get Azure AD Role Definition id for application admin (Owned By)
+export azure_ad_application_admin_role_id=$(echo $azure_ad_graph_application | jq -r -c '.[0].appRoles[] | select(.value | contains("Application.ReadWrite.OwnedBy")) | .id')
+
+#Assign Permissions to Service Principal
+graphurl="https://graph.microsoft.com/beta/servicePrincipals/$(echo $azure_ad_graph_application | jq -r -c '.[0].objectId')/appRoleAssignments" 
+graphrequest="{\"principalId\": $(az ad sp show --id $(echo $azureFoundry_Service_Principal | jq -r .appId ) --query objectId),\"resourceId\": \"$(echo $azure_ad_graph_application | jq -r -c '.[0].objectId')\",\"appRoleId\": \"$azure_ad_application_admin_role_id\"}"
+
+curl --location --request POST  $graphurl \
+--header "Authorization: Bearer $(az account get-access-token --resource https://graph.microsoft.com | jq -r .\accessToken)" \
+--header 'Content-Type: application/json' \
+--data-raw "$graphrequest"
+
 az logout
 
 cd ./Foundry-Base
-echo $backend_storage_account_key
 echo "Initialising Terraform."
 terraform init \
 -backend-config="storage_account_name=${orgLower}afstate" \
@@ -244,4 +262,4 @@ cd ..
 
 #TODO: Automate creation of pipeline using API - Maybe wait for the terraform module to include this functionality?
 
-echo -e "${GREEN}The Azure Foundry installer script has successfully deployed into your environment!${NOCOLOR}"
+echo -e "${GREEN}The Azure Foundry installer script has successfully deployed into your environment!${NOCOLOR}
