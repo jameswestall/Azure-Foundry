@@ -12,7 +12,6 @@ Intended to get organizations started on Azure & Azure DevOps a using Infrastruc
 - Declarative Deployment
   - Azure Foundry DevOps Project
     - Initial Repository
-    - Azure Pipeline
     - Service Principal Connection
     - Branch Policy
   - Azure Management Group
