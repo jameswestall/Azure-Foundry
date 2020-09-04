@@ -104,7 +104,7 @@ echo "All variables provided"
 echo
 echo
 echo -e "${GREEN}Removing parent repo for foundry operations${NOCOLOR}"
-rm -rf ./.git
+# rm -rf ./.git
 
 echo
 echo
@@ -182,20 +182,31 @@ curl --location --request POST  $graphurl \
 az logout
 
 cd ./Foundry-Base
+
 echo "Initialising Terraform."
 terraform init \
--backend-config="storage_account_name=${orgLower}afstate" \
--backend-config="container_name=azurefoundrystate" \
--backend-config="key=azurefoundrybase.terraform.tfstate" 
+    -backend-config="storage_account_name=${orgLower}afstate" \
+    -backend-config="container_name=azurefoundrystate" \
+    -backend-config="key=azurefoundrybase.terraform.tfstate" \
 
 echo "Completing Terraform Plan"
-terraform plan -var="personal_access_token=$azureDevopsPAT" -var="org_service_url=$azureDevopsURL"
+terraform plan -var="personal_access_token=$azureDevopsPAT" \
+    -var="org_service_url=$azureDevopsURL" \
+    -var="subscription_id=$subscriptionId" \
+    -var="client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)" \
+    -var="client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)" \
+    -var="tenant_id=$tenantId" 
 
 echo "Completing Terraform Apply"
-terraform apply -auto-approve -var="personal_access_token=$azureDevopsPAT" -var="org_service_url=$azureDevopsURL"
+terraform apply -auto-approve \
+    -var="personal_access_token=$azureDevopsPAT" \
+    -var="org_service_url=$azureDevopsURL" \
+    -var="subscription_id=$subscriptionId" \
+    -var="client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)" \
+    -var="client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)" \
+    -var="tenant_id=$tenantId" 
 
-#terraform destroy
-#rm -rf ./.git
+rm -rf ./.git
 
 azureFoundry_Projects_Repo=$(terraform output ssh_url_projects)
 azureFoundry_Mgmt_Repo=$(terraform output ssh_url_mgmt)
@@ -262,4 +273,4 @@ cd ..
 
 #TODO: Automate creation of pipeline using API - Maybe wait for the terraform module to include this functionality?
 
-echo -e "${GREEN}The Azure Foundry installer script has successfully deployed into your environment!${NOCOLOR}
+echo -e "${GREEN}The Azure Foundry installer script has successfully deployed into your environment!${NOCOLOR}"

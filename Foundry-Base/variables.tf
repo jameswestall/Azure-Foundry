@@ -6,16 +6,19 @@ variable "personal_access_token" {
   type = string
 }
 
-variable "subscription_id" {
-  type = string
-}
 variable "client_id" {
   type = string
 }
+
 variable "client_secret" {
   type = string
 }
+
 variable "tenant_id" {
+  type = string
+}
+
+variable "subscription_id" {
   type = string
 }
 
@@ -33,6 +36,11 @@ variable "deployRegion" {
 variable "azure_foundry_base" {
   type = object({
     name               = string
+    areaPrefix         = string
+    subscription_id    = string
+    vnetRange          = string
+    subnetCount        = string
+    subnetExtraBits    = string
     description        = string
     visibility         = string
     version_control    = string
@@ -47,7 +55,9 @@ variable "azure_foundry_base" {
     })
   })
   default = {
-    name               = "Azure Foundry",                                                            //default project name
+    name               = "Azure Foundry", //default project name
+    areaname           = "FOUNDRY"
+    subscription_id    = "10737489-ac39-415a-bd96-e76f05732c85"
     description        = "Azure Foundry allows organisations to adopt Azure & Azure DevOps at speed" // change as required
     visibility         = "private",                                                                  //private or public - suggest private for THIS repo
     version_control    = "git"                                                                       // git or tfvc 
@@ -63,10 +73,15 @@ variable "azure_foundry_base" {
   }
 }
 
- //Add Azure DevOps projects here
+//Add Azure DevOps projects here
 variable "foundry_project_list" {
-  type = list(object({
+  type = map(object({
     name               = string
+    areaPrefix         = string
+    subscription_id    = string
+    vnetRange          = string
+    subnetCount        = string
+    subnetExtraBits    = string
     description        = string
     visibility         = string
     version_control    = string
@@ -80,21 +95,26 @@ variable "foundry_project_list" {
       artifacts    = string
     })
   }))
-  default = [
-    {
-    name               = "Azure Foundry - Landing Project 1 ",                                                            //default project name
-    description        = "This is the first project scace deployed using the Azure Cloud foundry" // change as required
-    visibility         = "private",                                                                  //private or public - suggest private for THIS repo
-    version_control    = "git"                                                                       // git or tfvc 
-    work_item_template = "Agile"
-    repolist           = ["Azure-Cloud-Projects1"]
-    features = {
-      boards       = "enabled" //optional
-      repositories = "enabled" //required enabled for this codebase to work
-      pipelines    = "enabled" //required enabled for this codebase to work
-      testplans    = "enabled" //optional
-      artifacts    = "enabled" //optional
+  default = {
+    project1 = {
+      name               = "Azure Foundry - Landing Project 1 ",                                     //default project name
+      areaPrefix         = "Project1",                                                               //Resource Group Name will be prepended with this name
+      subscription_id    = "9ddbb73f-7a81-4d90-b96a-ae360b43e1d8",                                   //subscription marked for usage
+      vnetRange          = "192.168.0.0/22",                                                         // range to be used for spoke
+      subnetCount        = "2",                                                                      //how many subnets to generate. 
+      subnetExtraBits    = "2",                                                                      //how many bits to add to the CIDR of the parent. 1 with /23 would be /24
+      description        = "This is the first project scace deployed using the Azure Cloud foundry", // change as required
+      visibility         = "private",                                                                //private or public - suggest private for  repo
+      version_control    = "git"                                                                     // git or tfvc 
+      work_item_template = "Agile"
+      repolist           = ["Azure-Cloud-Projects1"]
+      features = {
+        boards       = "enabled" //optional
+        repositories = "enabled" //required enabled for this codebase to work
+        pipelines    = "enabled" //required enabled for this codebase to work
+        testplans    = "enabled" //optional
+        artifacts    = "enabled" //optional
+      }
     }
   }
-  ]
 }

@@ -1,3 +1,4 @@
 NoCommit*
 *tfstate*
 *.terraform*
+.DS_Store

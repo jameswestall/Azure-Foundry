@@ -1,4 +1,4 @@
-/*variable "subscription_id" {
+variable "subscription_id" {
   type    = string
 }
 variable "client_id" {
@@ -9,7 +9,7 @@ variable "client_secret" {
 }
 variable "tenant_id" {
   type    = string
-}  */
+}
 
 variable "customerName" {
   type    = string
@@ -19,11 +19,6 @@ variable "customerName" {
 variable "deployRegion" {
   type    = string
   default = "australiasoutheast"
-}
-
-variable "deployRegionTimeZone" {
-  type    = string
-  default = "E. Australia Standard Time"
 }
 
 variable "allowedRegions" {
@@ -41,4 +36,19 @@ variable "tagList" {
     "ExpiryDate",
     "CreationTicket"
   ]
+}
+
+variable "platformSubscriptions" {
+  type = list 
+  default = ["10737489-ac39-415a-bd96-e76f05732c85"]
+}
+
+variable "devSubscriptions" {
+  type = list 
+  default = ["9ddbb73f-7a81-4d90-b96a-ae360b43e1d8"]
+}
+
+variable "prodSubscriptions" {
+  type = list
+  default = null
 }

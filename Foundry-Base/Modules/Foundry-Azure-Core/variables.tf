@@ -1,3 +1,16 @@
+variable "subscription_id" {
+  type = string
+}
+variable "client_id" {
+  type = string
+}
+variable "client_secret" {
+  type = string
+}
+variable "tenant_id" {
+  type = string
+}
+
 variable "customerName" {
   type    = string
   default = "Company"
@@ -14,16 +27,40 @@ variable "deployRegionTimeZone" {
 }
 
 variable "azureResourceGroups" {
-  type = map
+  type = map(object({
+    name = string
+    tags = object({ service = string })
+    }
+  ))
   default = {
-    networkRG    = "NETWORK-RG01"
-    serverRG     = "SERVER-RG01"
-    monitoringRG = "MONITORING-RG01"
-    backupRG     = "BACKUP-RG01"
-    keyvaultRG   = "KEYVAULT-RG01"
-    cloudShellRG = "CLOUDSHELL-RG01"
+    networkRG = {
+      name = "NETWORK-RG01"
+      tags = { "service" = "Azure Networking" }
+    }
+    serverRG = {
+      name = "SERVER-RG01"
+      tags = { "service" = "Azure Compute" }
+    }
+    monitoringRG = {
+      name = "MONITORING-RG01"
+      tags = { "service" = "Azure Monitoring" }
+    }
+    backupRG = {
+      name = "BACKUP-RG01"
+      tags = { "service" = "Azure Backup" }
+    }
+    keyvaultRG = {
+      name = "KEYVAULT-RG01"
+      tags = { "service" = "Azure Security" }
+    }
+    cloudShellRG = {
+      name = "CLOUDSHELL-RG01"
+      tags = { "service" = "Azure Management" }
+    }
   }
 }
+
+
 
 variable "vnetName" {
   type    = string
@@ -38,10 +75,10 @@ variable "vnetRanges" {
 variable "azureSubnetRanges" {
   type = map
   default = {
-    "1" = "10.1.1.0/25"
-    "2" = "10.1.1.128/25"
-    "3" = "10.1.2.0/25"
-    "4" = "10.1.2.128/25"
+    "1" = "10.1.2.0/25"
+    "2" = "10.1.2.128/25"
+    "3" = "10.1.3.0/25"
+    "4" = "10.1.3.128/25"
   }
 }
 
@@ -49,6 +86,16 @@ variable "azureGWSubnetRange" {
   type    = string
   default = "10.1.0.0/24"
 }
+
+variable "azureFWSubnetRange" {
+  type    = string
+  default = "10.1.1.0/24"
+}
+variable "azureFWName" {
+  type    = string
+  default = "CORE-AZURE-FW"
+}
+
 
 variable "basetags" {
   type = map

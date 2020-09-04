@@ -1,3 +1,12 @@
+provider "azurerm" {
+  version = "~>2.5.0"
+  features {}
+  subscription_id = var.subscription_id
+  client_id       = var.client_id
+  client_secret   = var.client_secret
+  tenant_id       = var.tenant_id
+}
+
 data "azurerm_client_config" "current" {}
 
 data "azurerm_subscription" "current" {}
@@ -10,34 +19,34 @@ resource "random_string" "random" {
 }
 
 resource "azurerm_resource_group" "azureResourceGroups" {
-  name     = element(values(var.azureResourceGroups), count.index)
+  name     = element(values(var.azureResourceGroups), count.index).name
   count    = length(var.azureResourceGroups)
   location = var.deployRegion
-  tags     = var.basetags
+  tags     = merge(var.basetags, element(values(var.azureResourceGroups), count.index).tags, { "location" = "${var.deployRegion}" })
 }
 
 resource "azurerm_virtual_network" "azureVnet" {
   name                = var.vnetName
-  resource_group_name = var.azureResourceGroups["networkRG"]
+  resource_group_name = var.azureResourceGroups["networkRG"].name
   location            = var.deployRegion
   address_space       = var.vnetRanges
   depends_on          = [azurerm_resource_group.azureResourceGroups]
-  tags                = merge(var.basetags, { "service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
 }
 
 resource "azurerm_network_watcher" "azureNetworkWatcher" {
   name                = "${var.deployRegion}-networkwatcher"
   location            = var.deployRegion
-  resource_group_name = var.azureResourceGroups["monitoringRG"]
+  resource_group_name = var.azureResourceGroups["monitoringRG"].name
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_network_security_group" "azureVnetNsgs" {
   name                = format("CORE-VNET-NSG-SUB%02s", count.index + 1)
   location            = var.deployRegion
-  resource_group_name = var.azureResourceGroups["networkRG"]
+  resource_group_name = var.azureResourceGroups["networkRG"].name
   count               = length(var.azureSubnetRanges)
-  tags                = merge(var.basetags, { "service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -45,15 +54,15 @@ resource "azurerm_route_table" "azureVnetRoutes" {
   count                         = length(var.azureSubnetRanges)
   name                          = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
   location                      = var.deployRegion
-  resource_group_name           = var.azureResourceGroups["networkRG"]
+  resource_group_name           = var.azureResourceGroups["networkRG"].name
   disable_bgp_route_propagation = false
-  tags                          = merge(var.basetags, { "service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                          = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
   depends_on                    = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_subnet" "azureVnetSubnets" {
   name                 = format("CORE-VNET-PROD-SUB%02s", count.index + 1)
-  resource_group_name  = var.azureResourceGroups["networkRG"]
+  resource_group_name  = var.azureResourceGroups["networkRG"].name
   virtual_network_name = var.vnetName
   address_prefix       = element(values(var.azureSubnetRanges), count.index)
   count                = length(var.azureSubnetRanges)
@@ -75,19 +84,92 @@ resource "azurerm_subnet_network_security_group_association" "azureVnetNsgAssoci
 
 resource "azurerm_subnet" "azureVnetGatewaySN" {
   name                 = "GatewaySubnet"
-  resource_group_name  = var.azureResourceGroups["networkRG"]
+  resource_group_name  = var.azureResourceGroups["networkRG"].name
   virtual_network_name = var.vnetName
   address_prefix       = var.azureGWSubnetRange
   depends_on           = [azurerm_virtual_network.azureVnet]
 }
 
+resource "azurerm_subnet" "azureVnetFirewallSN" {
+  name                 = "AzureFirewallSubnet"
+  resource_group_name  = var.azureResourceGroups["networkRG"].name
+  virtual_network_name = var.vnetName
+  address_prefix       = var.azureFWSubnetRange
+}
+
+resource "azurerm_public_ip" "azureVnetFirewallIP" {
+  name                = upper("${var.azureFWName}-IP")
+  location            = var.deployRegion
+  resource_group_name = var.azureResourceGroups["networkRG"].name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+resource "azurerm_firewall" "azureFirewall" {
+  name                = var.azureFWName
+  location            = var.deployRegion
+  resource_group_name = var.azureResourceGroups["networkRG"].name
+
+  ip_configuration {
+    name                 = "configuration"
+    subnet_id            = azurerm_subnet.azureVnetFirewallSN.id
+    public_ip_address_id = azurerm_public_ip.azureVnetFirewallIP.id
+  }
+}
+
+#Create a Azure Firewall Network Rule for Google, Cloudflare & Quad9 DNS
+resource "azurerm_firewall_network_rule_collection" "azureFirewall-dns" {
+  name                = "azure-firewall-dns-rule"
+  azure_firewall_name = azurerm_firewall.azureFirewall.name
+  resource_group_name = var.azureResourceGroups["networkRG"].name
+  priority            = 100
+  action              = "Allow"
+  rule {
+    name                  = "Allow-DNS"
+    source_addresses      = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+    destination_ports     = ["53"]
+    destination_addresses = ["8.8.8.8", "8.8.4.4", "9.9.9.9", "1.1.1.1", "1.0.0.1"]
+    protocols             = ["TCP", "UDP"]
+  }
+}
+
+#Create a Azure Firewall Network Rule for Azure Active Directoy
+resource "azurerm_firewall_network_rule_collection" "azureFirewall-aad" {
+  name                = "azure-firewall-azure-ad-rule"
+  azure_firewall_name = azurerm_firewall.azureFirewall.name
+  resource_group_name = var.azureResourceGroups["networkRG"].name
+  priority            = 104
+  action              = "Allow"
+  rule {
+    name                  = "Allow-AzureAD"
+    source_addresses      = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+    destination_ports     = ["25"]
+    destination_addresses = ["AzureActiveDirectory"]
+    protocols             = ["TCP", "UDP"]
+  }
+}
+
+# Create a Azure Firewall Application Rule for Windows Update
+resource "azurerm_firewall_application_rule_collection" "azureFirewall-windowsupdate" {
+  name                = "azure-firewall-windows-update-rule"
+  azure_firewall_name = azurerm_firewall.azureFirewall.name
+  resource_group_name = var.azureResourceGroups["networkRG"].name
+  priority            = 1000
+  action              = "Allow"
+  rule {
+    name             = "Allow-WindowsUpdate"
+    source_addresses = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+    fqdn_tags        = ["WindowsUpdate"]
+  }
+}
+
 resource "azurerm_storage_account" "azureCloudShellAccount" {
   name                     = "cloudshell${random_string.random.result}"
-  resource_group_name      = var.azureResourceGroups["cloudShellRG"]
+  resource_group_name      = var.azureResourceGroups["cloudShellRG"].name
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "GRS"
-  tags                     = merge(var.basetags, { "service" = "Azure Management", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Management", "location" = "${var.deployRegion}" })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -99,7 +181,7 @@ resource "azurerm_storage_share" "azureCloudShellShare" {
 
 resource "azurerm_key_vault" "azureKeyVault" {
   name                            = "${var.keyVaultName}-${random_string.random.result}"
-  resource_group_name             = var.azureResourceGroups["cloudShellRG"]
+  resource_group_name             = var.azureResourceGroups["keyvaultRG"].name
   location                        = var.deployRegion
   enabled_for_disk_encryption     = true
   tenant_id                       = data.azurerm_client_config.current.tenant_id
@@ -115,23 +197,23 @@ resource "azurerm_key_vault" "azureKeyVault" {
     virtual_network_subnet_ids = azurerm_subnet.azureVnetSubnets.*.id
   }
 
-  tags       = merge(var.basetags, { "service" = "Azure Security", "location" = "${var.deployRegion}" })
+  tags       = merge(var.basetags, { "Service" = "Azure Security", "location" = "${var.deployRegion}" })
   depends_on = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_recovery_services_vault" "azureBackupVault" {
   name                = var.backupVaultName
-  resource_group_name = var.azureResourceGroups["backupRG"]
+  resource_group_name = var.azureResourceGroups["backupRG"].name
   location            = var.deployRegion
   sku                 = "Standard"
   soft_delete_enabled = true
-  tags                = merge(var.basetags, { "service" = "Azure Backup", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Backup", "location" = "${var.deployRegion}" })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_backup_policy_vm" "azureBackupVaultT1Policy" {
   name                = "Tier1BackupPolicy"
-  resource_group_name = var.azureResourceGroups["backupRG"]
+  resource_group_name = var.azureResourceGroups["backupRG"].name
   recovery_vault_name = azurerm_recovery_services_vault.azureBackupVault.name
   timezone            = var.deployRegionTimeZone
 
@@ -164,7 +246,7 @@ resource "azurerm_backup_policy_vm" "azureBackupVaultT1Policy" {
 
 resource "azurerm_backup_policy_vm" "azureBackupVaultT2Policy" {
   name                = "Tier2BackupPolicy"
-  resource_group_name = var.azureResourceGroups["backupRG"]
+  resource_group_name = var.azureResourceGroups["backupRG"].name
   recovery_vault_name = azurerm_recovery_services_vault.azureBackupVault.name
   timezone            = var.deployRegionTimeZone
 
@@ -197,7 +279,7 @@ resource "azurerm_backup_policy_vm" "azureBackupVaultT2Policy" {
 
 resource "azurerm_backup_policy_vm" "azureBackupVaultT3Policy" {
   name                = "Tier3BackupPolicy"
-  resource_group_name = var.azureResourceGroups["backupRG"]
+  resource_group_name = var.azureResourceGroups["backupRG"].name
   recovery_vault_name = azurerm_recovery_services_vault.azureBackupVault.name
   timezone            = var.deployRegionTimeZone
 
@@ -223,28 +305,28 @@ resource "azurerm_backup_policy_vm" "azureBackupVaultT3Policy" {
 
 resource "azurerm_log_analytics_workspace" "azureLogAnalytics" {
   name                = "${var.analyticsName}-${random_string.random.result}"
-  resource_group_name = var.azureResourceGroups["monitoringRG"]
+  resource_group_name = var.azureResourceGroups["monitoringRG"].name
   location            = var.deployRegion
   sku                 = "PerGB2018"
   retention_in_days   = 30
-  tags                = merge(var.basetags, { "service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_storage_account" "azureFlowLogsAccount" {
   name                     = "flowlogs${random_string.random.result}"
-  resource_group_name      = var.azureResourceGroups["monitoringRG"]
+  resource_group_name      = var.azureResourceGroups["monitoringRG"].name
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  tags                     = merge(var.basetags, { "service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_network_watcher_flow_log" "azureNetworkFlowLogs" {
   count                     = length(var.azureSubnetRanges)
   network_watcher_name      = azurerm_network_watcher.azureNetworkWatcher.name
-  resource_group_name       = var.azureResourceGroups["monitoringRG"]
+  resource_group_name       = var.azureResourceGroups["monitoringRG"].name
   network_security_group_id = azurerm_network_security_group.azureVnetNsgs[count.index].id
   storage_account_id        = azurerm_storage_account.azureFlowLogsAccount.id
   enabled                   = true
@@ -261,93 +343,22 @@ resource "azurerm_network_watcher_flow_log" "azureNetworkFlowLogs" {
   }
 }
 
-resource "azuread_group" "azureAdminGroupT3" {
-  name = var.azureAdminGroupT3
-}
-
-resource "azuread_group" "azureAdminGroupT2" {
-  name = var.azureAdminGroupT2
-}
-
-resource "azuread_group" "azureAdminGroupT1" {
-  name = var.azureAdminGroupT1
-}
-
-resource "azurerm_role_assignment" "azureAdminTier3Assignment" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Contributor"
-  principal_id         = azuread_group.azureAdminGroupT3.id
-}
-
-resource "azurerm_role_assignment" "azureAdminTier2Assignment-1" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Virtual Machine Contributor"
-  principal_id         = azuread_group.azureAdminGroupT2.id
-}
-
-resource "azurerm_role_assignment" "azureAdminTier2Assignment-2" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Log Analytics Contributor"
-  principal_id         = azuread_group.azureAdminGroupT2.id
-}
-
-resource "azurerm_role_assignment" "azureAdminTier1Assignment" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Reader"
-  principal_id         = azuread_group.azureAdminGroupT1.id
-}
-
 resource "azurerm_storage_account" "azurevmDiagnosticsAccount" {
   name                     = "diagnostics${random_string.random.result}"
-  resource_group_name      = var.azureResourceGroups["serverRG"]
+  resource_group_name      = var.azureResourceGroups["serverRG"].name
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  tags                     = merge(var.basetags, { "service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
-resource "azurerm_security_center_workspace" "azureSecurityCenter" {
-  scope        = data.azurerm_subscription.current.id
-  workspace_id = azurerm_log_analytics_workspace.azureLogAnalytics.id
-}
+# resource "azurerm_security_center_subscription_pricing" "azureSecurityCenter-standard" {
+#   tier = "Standard"
+# }
 
-resource "azurerm_policy_assignment" "azurePolicy-WindowsAnalyticsAssign" {
-  name                 = "${var.customerName} - Enforce Windows Log Analytic Enrollment"
-  scope                = data.azurerm_subscription.current.id
-  location             = var.deployRegion
-  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/0868462e-646c-4fe3-9ced-a733534b6a2c"
-  description          = "Enforce Windows Log Analytic Enrollment"
-  display_name         = "${var.customerName} - Enforce Windows Log Analytic Enrollment"
-  identity {
-    type = "SystemAssigned"
-  }
-
-  parameters = <<PARAMETERS
-{
-  "logAnalytics": {
-    "value": "${azurerm_log_analytics_workspace.azureLogAnalytics.id}"
-  }
-}
-PARAMETERS
-}
-
-resource "azurerm_policy_assignment" "azurePolicy-LinuxAnalyticsAssign" {
-  name                 = "${var.customerName} - Enforce Linux Log Analytic Enrollment"
-  scope                = data.azurerm_subscription.current.id
-  location             = var.deployRegion
-  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/053d3325-282c-4e5c-b944-24faffd30d77"
-  description          = "Enforce Linux Log Analytic Enrollment"
-  display_name         = "${var.customerName} - Enforce Linux Log Analytic Enrollment"
-  identity {
-    type = "SystemAssigned"
-  }
-
-  parameters = <<PARAMETERS
-{
-  "logAnalytics": {
-    "value": "${azurerm_log_analytics_workspace.azureLogAnalytics.id}"
-  }
-}
-PARAMETERS
-}
+# resource "azurerm_security_center_workspace" "azureSecurityCenter-workspaces" {
+#   scope        = data.azurerm_subscription.current.id
+#   workspace_id = azurerm_log_analytics_workspace.azureLogAnalytics.id
+#   depends_on   = [azurerm_security_center_subscription_pricing.azureSecurityCenter-standard]
+# }

@@ -32,7 +32,7 @@ t = Azure AD Tenant ID
 s = Subscription ID for initial deployment  
 o = Organization Name to be used throughout the deployment  
 
-## Ongoing Usage (Future Capability)
-Post execution of the initialization script, Organizations can begin to expand on their Azure deployment, using the Azure Foundry. Create a pull request against the Azure Foundry with a NEW subscription & project. 
-Hopefully will replicate something like this: https://github.com/Azure/Enterprise-Scale/blob/main/docs/reference/adventureworks/README.md
+## Ongoing Usage
+Post execution of the initialization script, Organizations can begin to expand on their Azure deployment, using the Azure Foundry. Create a pull request against the Azure Foundry with a project within Azure DevOps, and declare an instance of the Foundry-Azure-Spoke using your project configuration. 
 
+Hopefully will replicate something like this: https://github.com/Azure/Enterprise-Scale/blob/main/docs/reference/adventureworks/README.md
