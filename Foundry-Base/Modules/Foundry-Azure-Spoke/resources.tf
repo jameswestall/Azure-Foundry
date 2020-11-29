@@ -225,12 +225,12 @@ resource "random_password" "spoke-service-principal-password" {
 }
 
 resource "azuread_application" "spoke-service-principal" {
-  name = "${var.project_object.areaPrefix}-deployment-SP"
+  name = "azure-foundry-${var.project_object.areaPrefix}-deployment-sp"
 }
 
 resource "azuread_application_password" "spoke-service-principal-app-password" {
   application_object_id = azuread_application.spoke-service-principal.id
-  description           = "Azure Devops Client Secret"
+  // description           = "Azure Devops Client Secret"
   value                 = random_password.spoke-service-principal-password.result
-  end_date              = timeadd(timestamp(), 8760h) //1 Year Validity
+  end_date              = timeadd("2021-11-22T00:00:00Z", "10m") #timeadd(timestamp() , 8760h) //1 Year Validity
 }

@@ -32,7 +32,7 @@ variable "deployRegion" {
   default = "australiasoutheast"
 }
 
-//base azure devops project for all Azure Foundry resources. 
+//base project for all Azure Foundry resources. 
 variable "azure_foundry_base" {
   type = object({
     name               = string
@@ -56,10 +56,13 @@ variable "azure_foundry_base" {
   })
   default = {
     name               = "Azure Foundry", //default project name
-    areaname           = "FOUNDRY"
+    areaPrefix         = "FOUNDRY"
     subscription_id    = "10737489-ac39-415a-bd96-e76f05732c85"
     description        = "Azure Foundry allows organisations to adopt Azure & Azure DevOps at speed" // change as required
-    visibility         = "private",                                                                  //private or public - suggest private for THIS repo
+    visibility         = "private",
+    vnetRange          = "10.0.0.1/20",                                                         // range to be used for core
+    subnetCount        = "8",                                                                      //how many subnets to generate. 
+    subnetExtraBits    = "4",                                                                      //how many bits to add to the CIDR of the parent. 1 with /23 would be /24                                                                  //private or public - suggest private for THIS repo
     version_control    = "git"                                                                       // git or tfvc 
     work_item_template = "Agile"
     repolist           = ["Azure-Cloud-Foundry-Projects", "Azure-Cloud-Foundry-ManagementGroups", "Azure-Cloud-Foundry-Other"]

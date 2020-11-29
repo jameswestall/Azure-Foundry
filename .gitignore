@@ -2,3 +2,4 @@ NoCommit*
 *tfstate*
 *.terraform*
 .DS_Store
+reset-private.sh
