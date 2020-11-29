@@ -12,6 +12,8 @@ provider "azuread" {
   tenant_id       = var.tenant_id
 }
 
+provider "random" {}
+
 terraform {
   backend "azurerm" {}
 }

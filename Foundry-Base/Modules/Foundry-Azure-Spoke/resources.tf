@@ -210,7 +210,27 @@ resource "azurerm_virtual_network_peering" "spoke-to-core" {
 resource "azurerm_virtual_network_peering" "core-to-spoke" {
   provider                  = azurerm.core
   name                      = upper("CORE-TO-${var.project_object.areaPrefix}")
-  resource_group_name       = "NETWORK-RG01"
+  resource_group_name       = "NETWORK-RG01" //TODO: Pass this in
   virtual_network_name      = "CORE-VNET-01"
   remote_virtual_network_id = azurerm_virtual_network.azureVnet.id
+}
+
+resource "random_password" "spoke-service-principal-password" {
+  length = 20
+  special = true
+  override_special = "_%@"
+  keepers = {
+    area_prefix = "${var.project_object.areaPrefix}" // spoke prefixes should ideally remain the same
+  }
+}
+
+resource "azuread_application" "spoke-service-principal" {
+  name = "${var.project_object.areaPrefix}-deployment-SP"
+}
+
+resource "azuread_application_password" "spoke-service-principal-app-password" {
+  application_object_id = azuread_application.spoke-service-principal.id
+  description           = "Azure Devops Client Secret"
+  value                 = random_password.spoke-service-principal-password.result
+  end_date              = timeadd(timestamp(), 8760h) //1 Year Validity
 }

@@ -103,7 +103,7 @@ variable "basetags" {
     BillingCode    = "1234"
     ExpiryDate     = "Never"
     CreationTicket = "1234"
-    Owner          = "james"
+    Owner          = "Contoso"
   }
 }
 
