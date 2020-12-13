@@ -234,7 +234,7 @@ terraform plan \
     -var="client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)" \
     -var="client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)" \
     -var="tenant_id=$tenantId" 
-
+    
 echo "Completing Terraform Apply"
 terraform apply -auto-approve \
     -var="personal_access_token=$azureDevopsPAT" \

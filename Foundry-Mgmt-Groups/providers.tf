@@ -18,5 +18,4 @@ provider "random" {}
 
 terraform {
   backend "azurerm" {}
-  features {}
 }
