@@ -29,7 +29,7 @@ resource "azurerm_virtual_network" "azureVnet" {
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   location            = var.deployRegion
   address_space       = var.vnetRanges
-  depends_on          = [azurerm_resource_group.azureResourceGroups]
+  depends_on          = [azurerm_resource_group.azureResourceGroups, azurerm_network_watcher.azureNetworkWatcher]
   tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
 }
 
@@ -122,9 +122,82 @@ resource "azurerm_network_security_group" "azureVnetBastionNSG" {
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
+resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowHttpsInbound-Rule" {
+  name                        = "AllowHttpsInbound"
+  priority                    = 120
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "Internet"
+  destination_address_prefix  = "*"
+  resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  network_security_group_name = azurerm_network_security_group.azureVnetBastionNSG.name
+}
+
+resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowGWManagerInbound-Rule" {
+  name                        = "AllowGatewayManagerInbound"
+  priority                    = 130
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "GatewayManager"
+  destination_address_prefix  = "*"
+  resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  network_security_group_name = azurerm_network_security_group.azureVnetBastionNSG.name
+}
+
+resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowAzureLBInbound-Rule" {
+  name                        = "AllowAzureLoadBalancerInbound"
+  priority                    = 140
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "AzureLoadBalancer"
+  destination_address_prefix  = "*"
+  resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  network_security_group_name = azurerm_network_security_group.azureVnetBastionNSG.name
+}
+
+resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowSshRdpOutbound-Rule" {
+  name                        = "AllowSshRdpOutbound"
+  priority                    = 100
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "*"
+  source_port_range           = "*"
+  destination_port_ranges      = ["22","3389"]
+  source_address_prefix       = "*"
+  destination_address_prefix  = "VirtualNetwork"
+  resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  network_security_group_name = azurerm_network_security_group.azureVnetBastionNSG.name
+}
+
+
+resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowAzureCloudOutbound-Rule" {
+  name                        = "AllowAzureCloudOutbound"
+  priority                    = 110
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "AzureCloud"
+  resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  network_security_group_name = azurerm_network_security_group.azureVnetBastionNSG.name
+}
+
+
 resource "azurerm_subnet_network_security_group_association" "azureVnetBastionNSGAssociation" {
   subnet_id                 = azurerm_subnet.azureVnetBastionSN.id
   network_security_group_id = azurerm_network_security_group.azureVnetBastionNSG.id
+  depends_on = [azurerm_network_security_rule.azureVnetBastionNSG-AllowHttpsInbound-Rule , azurerm_network_security_rule.azureVnetBastionNSG-AllowSshRdpOutbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureLBInbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowGWManagerInbound-Rule ,azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureCloudOutbound-Rule]
 }
 
 resource "azurerm_subnet" "azureVnetWAFSN" {

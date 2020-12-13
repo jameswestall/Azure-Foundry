@@ -37,7 +37,7 @@ resource "azurerm_virtual_network" "azureVnet" {
   resource_group_name = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   location            = var.deployRegion
   address_space       = ["${var.project_object.vnetRange}"]
-  depends_on          = [azurerm_resource_group.azureResourceGroups]
+  depends_on          = [azurerm_resource_group.azureResourceGroups, azurerm_network_watcher.azureNetworkWatcher]
   tags                = merge(var.basetags, var.azureResourceGroups["networkRG"].tags, { "location" = "${var.deployRegion}" })
 }
 
@@ -237,19 +237,21 @@ resource "azuread_application_password" "spoke-service-principal-app-password" {
 }
 
 resource "azuread_group" "project-owner-iam-group" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-owner"
+  name = "admin-azure-foundry-${var.project_object.areaPrefix}-owner"
+  description = "This group should not contain permanent members - Please leverage the generalusers iam group"
 }
 
 resource "azuread_group" "project-contributors-iam-group" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-contributor"
+  name = "admin-azure-foundry-${var.project_object.areaPrefix}-contributor"
+  description = "This group should not contain permanent members - Please leverage the generalusers iam group"
 }
 
 resource "azuread_group" "project-generalusers-iam-group" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-generaluser"
+  name = "admin-azure-foundry-${var.project_object.areaPrefix}-generaluser"
 }
 
 resource "azuread_group" "project-editor-iam-group" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-reader"
+  name = "admin-azure-foundry-${var.project_object.areaPrefix}-reader"
 }
 
 resource "azurerm_role_assignment" "project-owner-iam-assignments" {
