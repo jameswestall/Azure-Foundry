@@ -24,6 +24,14 @@ variable "core_network_fw_ip" {
   type = string
 }
 
+variable "core_network_rg_name" {
+  type = string
+}
+
+variable "core_network_name" {
+  type = string
+}
+
 variable "project_id" {
   type = string
 }
@@ -48,6 +56,12 @@ variable "project_object" {
       testplans    = string
       artifacts    = string
     })
+    extraResourceGroups = map(
+      object({
+        name = string
+        tags = map(string)
+      })
+    )
   })
 }
 
@@ -75,17 +89,9 @@ variable "azureResourceGroups" {
       name = "MONITORING-RG01"
       tags = { Service = "Azure Monitoring" }
     }
-    backupRG = {
-      name = "BACKUP-RG01"
-      tags = { Service = "Azure Backup" }
-    }
     keyvaultRG = {
       name = "KEYVAULT-RG01"
       tags = { Service = "Azure Security" }
-    }
-    cloudShellRG = {
-      name = "CLOUDSHELL-RG01"
-      tags = { Service = "Azure Management" }
     }
   }
 }

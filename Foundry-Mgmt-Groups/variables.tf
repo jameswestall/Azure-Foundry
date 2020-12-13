@@ -1,14 +1,14 @@
 variable "subscription_id" {
-  type    = string
+  type = string
 }
 variable "client_id" {
-  type    = string
+  type = string
 }
 variable "client_secret" {
-  type    = string
+  type = string
 }
 variable "tenant_id" {
-  type    = string
+  type = string
 }
 
 variable "customerName" {
@@ -22,7 +22,7 @@ variable "deployRegion" {
 }
 
 variable "allowedRegions" {
-  type = string
+  type    = string
   default = "[\"Australia SouthEast\",\"Australia East\"]"
 }
 
@@ -39,16 +39,16 @@ variable "tagList" {
 }
 
 variable "platformSubscriptions" {
-  type = list 
+  type    = list
   default = ["10737489-ac39-415a-bd96-e76f05732c85"]
 }
 
 variable "devSubscriptions" {
-  type = list 
+  type    = list
   default = ["9ddbb73f-7a81-4d90-b96a-ae360b43e1d8"]
 }
 
 variable "prodSubscriptions" {
-  type = list
+  type    = list
   default = null
 }

@@ -60,7 +60,10 @@ variable "azureResourceGroups" {
   }
 }
 
-
+variable "areaPrefix" {
+  type    = string
+  default = "CORE"
+}
 
 variable "vnetName" {
   type    = string
@@ -75,10 +78,10 @@ variable "vnetRanges" {
 variable "azureSubnetRanges" {
   type = map
   default = {
-    "1" = "10.1.2.0/25"
-    "2" = "10.1.2.128/25"
-    "3" = "10.1.3.0/25"
-    "4" = "10.1.3.128/25"
+    "1" = "10.1.5.0/25"
+    "2" = "10.1.5.128/25"
+    "3" = "10.1.6.0/25"
+    "4" = "10.1.6.128/25"
   }
 }
 
@@ -91,6 +94,22 @@ variable "azureFWSubnetRange" {
   type    = string
   default = "10.1.1.0/24"
 }
+
+variable "pepSubnetRange" {
+  type    = string
+  default = "10.1.2.0/24"
+}
+
+variable "bastionSubnetRange" {
+  type    = string
+  default = "10.1.3.0/24"
+}
+
+variable "wafSubnetRange" {
+  type    = string
+  default = "10.1.4.0/24"
+}
+
 variable "azureFWName" {
   type    = string
   default = "CORE-AZURE-FW"

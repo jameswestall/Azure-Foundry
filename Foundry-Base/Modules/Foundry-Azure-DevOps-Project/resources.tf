@@ -1,5 +1,5 @@
 resource "azuredevops_project" "azure_devops_project" {
-  project_name       = var.azure_devops_project.name
+  name               = var.azure_devops_project.name
   description        = var.azure_devops_project.description
   visibility         = var.azure_devops_project.visibility
   version_control    = var.azure_devops_project.version_control
@@ -7,7 +7,7 @@ resource "azuredevops_project" "azure_devops_project" {
   features           = var.azure_devops_project.features
   lifecycle {
     ignore_changes = [
-      project_name
+      name
     ]
   }
 }

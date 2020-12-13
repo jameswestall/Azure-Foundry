@@ -1,5 +1,4 @@
 provider "azurerm" {
-  version = "~>2.5.0"
   alias   = "core"
   features {}
   subscription_id = var.core_subscription_id
@@ -9,7 +8,6 @@ provider "azurerm" {
 }
 
 provider "azurerm" {
-  version = "~>2.5.0"
   alias   = "spoke"
   features {}
   subscription_id = var.subscription_id
@@ -59,7 +57,7 @@ resource "azurerm_subnet" "azureVnetSubnets" {
   name                 = format("SPOKE-VNET-SUB%02s", count.index + 1)
   resource_group_name  = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name = upper("${var.project_object.areaPrefix}-${var.vnetSuffix}")
-  address_prefix       = cidrsubnet(var.project_object.vnetRange, var.project_object.subnetExtraBits, count.index)
+  address_prefixes     = ["${cidrsubnet(var.project_object.vnetRange, var.project_object.subnetExtraBits, count.index)}"]
   count                = var.project_object.subnetCount
   depends_on           = [azurerm_virtual_network.azureVnet]
   service_endpoints    = ["Microsoft.KeyVault"]
@@ -205,19 +203,22 @@ resource "azurerm_virtual_network_peering" "spoke-to-core" {
   resource_group_name       = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name      = azurerm_virtual_network.azureVnet.name
   remote_virtual_network_id = var.core_network_id
+  #use_remote_gateways = true
+
 }
 
 resource "azurerm_virtual_network_peering" "core-to-spoke" {
   provider                  = azurerm.core
   name                      = upper("CORE-TO-${var.project_object.areaPrefix}")
-  resource_group_name       = "NETWORK-RG01" //TODO: Pass this in
-  virtual_network_name      = "CORE-VNET-01"
+  resource_group_name       = var.core_network_rg_name
+  virtual_network_name      = var.core_network_name
   remote_virtual_network_id = azurerm_virtual_network.azureVnet.id
+  allow_gateway_transit = true
 }
 
 resource "random_password" "spoke-service-principal-password" {
-  length = 20
-  special = true
+  length           = 20
+  special          = true
   override_special = "_%@"
   keepers = {
     area_prefix = "${var.project_object.areaPrefix}" // spoke prefixes should ideally remain the same
@@ -231,6 +232,46 @@ resource "azuread_application" "spoke-service-principal" {
 resource "azuread_application_password" "spoke-service-principal-app-password" {
   application_object_id = azuread_application.spoke-service-principal.id
   // description           = "Azure Devops Client Secret"
-  value                 = random_password.spoke-service-principal-password.result
-  end_date              = timeadd("2021-11-22T00:00:00Z", "10m") #timeadd(timestamp() , 8760h) //1 Year Validity
+  value    = random_password.spoke-service-principal-password.result
+  end_date = timeadd("2021-11-22T00:00:00Z", "10m") #timeadd(timestamp() , 8760h) //1 Year Validity //TODO  - Fix this
+}
+
+resource "azuread_group" "project-owner-iam-group" {
+  name = "azure-foundry-${var.project_object.areaPrefix}-owner"
+}
+
+resource "azuread_group" "project-contributors-iam-group" {
+  name = "azure-foundry-${var.project_object.areaPrefix}-contributor"
+}
+
+resource "azuread_group" "project-generalusers-iam-group" {
+  name = "azure-foundry-${var.project_object.areaPrefix}-generaluser"
+}
+
+resource "azuread_group" "project-editor-iam-group" {
+  name = "azure-foundry-${var.project_object.areaPrefix}-reader"
+}
+
+resource "azurerm_role_assignment" "project-owner-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Owner"
+  principal_id         = azuread_group.project-owner-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
+
+resource "azurerm_role_assignment" "project-contributor-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_group.project-contributors-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
+
+resource "azurerm_resource_group" "azureExtraResourceGroups" {
+  provider = azurerm.spoke
+  name     = upper("${var.project_object.areaPrefix}-${element(values(var.project_object.extraResourceGroups), count.index).name}")
+  count    = length(var.project_object.extraResourceGroups)
+  location = var.deployRegion
+  tags     = merge(var.basetags, element(values(var.project_object.extraResourceGroups), count.index).tags, { "location" = "${var.deployRegion}" })
 }

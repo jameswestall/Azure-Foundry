@@ -70,10 +70,12 @@ do
     if [ -z "$azureDevopsPAT" ]
     then
         read -s -p "Please provide Azure Devops PAT: " azureDevopsPAT
+
     fi
     #provide validation
+    echo "Complete."
     echo
-    echo "The following details have been provided and will be used:"
+    echo -e "${GREEN}The following details have been provided and will be used: ${NOCOLOR}"
     echo "TenantId: $tenantId"
     echo "Subscription Id: $subscriptionId"
     echo "Deploy Region: $deployRegion"
@@ -83,9 +85,26 @@ do
     echo "Azure Devops PAT not shown"
     echo
 
-    read -p "Would you like to proceed with these details? " -n 1 -r UserChoice
+    echo -e "${YELLOW}WARNING: ${NOCOLOR}This script will create a highly privileged service principal with access to both Azure and Azure AD!"
+    echo -e "${YELLOW}WARNING: ${NOCOLOR}This service can manage, Users, Groups and Azure AD Service principals in ADDITION to having full administrative access to ALL Azure resources within your tenant."
+    echo -e "${YELLOW}WARNING: ${NOCOLOR}You should ensure that the credentials for this account are securely stored and you understand the impact if this account were to be compromised."
+    echo -e "${YELLOW}WARNING: ${NOCOLOR}A detailed credential rotation plan/process is highly reccommended."
+    echo
+    read -p "Would you like to proceed with provisioning, understanding the risk associated with this Service Principal? " -n 1 -r UserChoice
+
     if [[ "$UserChoice" != [yY] ]]
     then 
+        echo
+        echo -e "${GREEN}The Azure Foundry script has been terminated, no provisioning has occured.${NOCOLOR}"
+        exit
+    fi
+
+    echo
+    read -p "Would you like to proceed with the above input arguments? " -n 1 -r UserChoice
+
+    if [[ "$UserChoice" != [yY] ]]
+    then 
+        echo
         unset tenantId
         unset subscriptionId
         unset deployRegion
@@ -170,11 +189,29 @@ export azure_ad_graph_application=$(az ad sp list --display-name 'Windows Azure 
 #get Azure AD Role Definition id for application admin (Owned By)
 export azure_ad_application_admin_role_id=$(echo $azure_ad_graph_application | jq -r -c '.[0].appRoles[] | select(.value | contains("Application.ReadWrite.OwnedBy")) | .id')
 
-#Assign Permissions to Service Principal
+#Assign Application Management permissions to Service Principal
 graphurl="https://graph.microsoft.com/beta/servicePrincipals/$(echo $azure_ad_graph_application | jq -r -c '.[0].objectId')/appRoleAssignments" 
 graphrequest="{\"principalId\": $(az ad sp show --id $(echo $azureFoundry_Service_Principal | jq -r .appId ) --query objectId),\"resourceId\": \"$(echo $azure_ad_graph_application | jq -r -c '.[0].objectId')\",\"appRoleId\": \"$azure_ad_application_admin_role_id\"}"
 
 curl --location --request POST  $graphurl \
+--header "Authorization: Bearer $(az account get-access-token --resource https://graph.microsoft.com | jq -r .\accessToken)" \
+--header 'Content-Type: application/json' \
+--data-raw "$graphrequest"
+
+#Assign Directory ReadWrite All permissions to Service Principal (Create Groups)
+#TODO: Pending Microsoft Graph update to terraform, use better permissions from line 201-218
+export azure_ad_group_admin_role_id=$(echo $azure_ad_graph_application | jq -r -c '.[0].appRoles[] | select(.value | contains("Directory.ReadWrite.All")) | .id')
+graphrequest="{\"principalId\": $(az ad sp show --id $(echo $azureFoundry_Service_Principal | jq -r .appId ) --query objectId),\"resourceId\": \"$(echo $azure_ad_graph_application | jq -r -c '.[0].objectId')\",\"appRoleId\": \"$azure_ad_group_admin_role_id\"}"
+
+curl --location --request POST  $graphurl \
+--header "Authorization: Bearer $(az account get-access-token --resource https://graph.microsoft.com | jq -r .\accessToken)" \
+--header 'Content-Type: application/json' \
+--data-raw "$graphrequest"
+
+#Assign User ACcount Administrator (Delete Groups)
+graphrequest="{\"principalId\": $(az ad sp show --id $(echo $azureFoundry_Service_Principal | jq -r .appId ) --query objectId),\"roleDefinitionId\":\"fe930be7-5e62-47db-91af-98c3a49a38b1\",\"directoryScopeId\":\"/\"}"
+
+curl --location --request POST "https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments" \
 --header "Authorization: Bearer $(az account get-access-token --resource https://graph.microsoft.com | jq -r .\accessToken)" \
 --header 'Content-Type: application/json' \
 --data-raw "$graphrequest"
@@ -187,10 +224,11 @@ echo "Initialising Terraform."
 terraform init \
     -backend-config="storage_account_name=${orgLower}afstate" \
     -backend-config="container_name=azurefoundrystate" \
-    -backend-config="key=azurefoundrybase.terraform.tfstate" \
+    -backend-config="key=azurefoundrybase.terraform.tfstate" 
 
 echo "Completing Terraform Plan"
-terraform plan -var="personal_access_token=$azureDevopsPAT" \
+terraform plan \
+    -var="personal_access_token=$azureDevopsPAT" \
     -var="org_service_url=$azureDevopsURL" \
     -var="subscription_id=$subscriptionId" \
     -var="client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)" \

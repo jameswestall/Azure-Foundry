@@ -17,3 +17,9 @@ module "Foundry-Project-Areas" {
   tenant_id       = var.tenant_id
 }
 ```
+
+
+## Unable to provision subscriptions due to open requests with MSFT
+https://github.com/terraform-providers/terraform-provider-azurerm/issues/1216
+
+Supported via ARM, still unable to be completed with TF due to detailed requirements regarding provider testing.

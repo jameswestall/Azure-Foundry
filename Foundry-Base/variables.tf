@@ -56,14 +56,14 @@ variable "azure_foundry_base" {
   })
   default = {
     name               = "Azure Foundry", //default project name
-    areaPrefix         = "FOUNDRY"
+    areaPrefix         = "FOUNDRY-CORE"
     subscription_id    = "10737489-ac39-415a-bd96-e76f05732c85"
     description        = "Azure Foundry allows organisations to adopt Azure & Azure DevOps at speed" // change as required
     visibility         = "private",
-    vnetRange          = "10.0.0.1/20",                                                         // range to be used for core
-    subnetCount        = "8",                                                                      //how many subnets to generate. 
-    subnetExtraBits    = "4",                                                                      //how many bits to add to the CIDR of the parent. 1 with /23 would be /24                                                                  //private or public - suggest private for THIS repo
-    version_control    = "git"                                                                       // git or tfvc 
+    vnetRange          = "10.0.0.1/20", // range to be used for core
+    subnetCount        = "8",           //how many subnets to generate. 
+    subnetExtraBits    = "4",           //how many bits to add to the CIDR of the parent. 1 with /23 would be /24                                                                  //private or public - suggest private for THIS repo
+    version_control    = "git"          // git or tfvc 
     work_item_template = "Agile"
     repolist           = ["Azure-Cloud-Foundry-Projects", "Azure-Cloud-Foundry-ManagementGroups", "Azure-Cloud-Foundry-Other"]
     features = {
@@ -75,6 +75,7 @@ variable "azure_foundry_base" {
     }
   }
 }
+
 
 //Add Azure DevOps projects here
 variable "foundry_project_list" {
@@ -97,6 +98,12 @@ variable "foundry_project_list" {
       testplans    = string
       artifacts    = string
     })
+    extraResourceGroups = map(
+      object({
+        name = string
+        tags = map(string)
+      })
+    )
   }))
   default = {
     project1 = {
@@ -117,6 +124,12 @@ variable "foundry_project_list" {
         pipelines    = "enabled" //required enabled for this codebase to work
         testplans    = "enabled" //optional
         artifacts    = "enabled" //optional
+      }
+      extraResourceGroups = {
+        testingRG = {
+          name = "TESTING-RG01"
+          tags = { "Service" = "Demonstration Capability" }
+        }
       }
     }
   }

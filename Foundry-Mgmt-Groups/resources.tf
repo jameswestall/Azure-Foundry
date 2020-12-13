@@ -3,25 +3,25 @@ resource "azurerm_management_group" "RootManagementGroup" {
 }
 
 resource "azurerm_management_group" "PlatformManagementGroup" {
-  display_name = "${var.customerName} - Platform Management Group"
+  display_name               = "${var.customerName} - Platform Management Group"
   parent_management_group_id = azurerm_management_group.RootManagementGroup.id
-  subscription_ids = var.platformSubscriptions
+  subscription_ids           = var.platformSubscriptions
 }
 resource "azurerm_management_group" "LandingZonesManagementGroup" {
-  display_name = "${var.customerName} - Landing Zones Management Group"
+  display_name               = "${var.customerName} - Landing Zones Management Group"
   parent_management_group_id = azurerm_management_group.RootManagementGroup.id
 }
 
 resource "azurerm_management_group" "DevManagementGroup" {
-  display_name = "${var.customerName} - Development Management Group"
+  display_name               = "${var.customerName} - Development Management Group"
   parent_management_group_id = azurerm_management_group.LandingZonesManagementGroup.id
-  subscription_ids = var.devSubscriptions
+  subscription_ids           = var.devSubscriptions
 }
 
 resource "azurerm_management_group" "ProdManagementGroup" {
-  display_name = "${var.customerName} - Production Management Group"
+  display_name               = "${var.customerName} - Production Management Group"
   parent_management_group_id = azurerm_management_group.LandingZonesManagementGroup.id
-  subscription_ids = var.prodSubscriptions
+  subscription_ids           = var.prodSubscriptions
 }
 
 resource "azurerm_policy_assignment" "azurePolicy-AllowedRegions" {
@@ -55,8 +55,8 @@ resource "azurerm_policy_assignment" "azurePolicy-Tagging-Deny-RG" {
   description          = "Enforces a tag on all resource groups created under the management group"
   display_name         = "${var.customerName} - Enforce Tag on Resource Group - ${var.tagList[count.index]}"
   location             = var.deployRegion
-  count = length(var.tagList)
-  parameters = <<PARAMETERS
+  count                = length(var.tagList)
+  parameters           = <<PARAMETERS
 {
   "tagName": {
     "value": "${var.tagList[count.index]}"
@@ -74,8 +74,8 @@ resource "azurerm_policy_assignment" "azurePolicy-Tagging-Inherit" {
   identity {
     type = "SystemAssigned"
   }
-  location             = var.deployRegion
-  count = length(var.tagList)
+  location   = var.deployRegion
+  count      = length(var.tagList)
   parameters = <<PARAMETERS
 {
   "tagName": {
