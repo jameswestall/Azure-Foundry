@@ -227,6 +227,16 @@ terraform init \
     -backend-config="key=azurefoundrybase.terraform.tfstate" 
 
 echo "Completing Terraform Plan"
+
+echo "terraform plan \
+    -var=\"personal_access_token=$azureDevopsPAT\" \
+    -var=\"org_service_url=$azureDevopsURL\" \
+    -var=\"subscription_id=$subscriptionId\" \
+    -var=\"client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)\" \
+    -var=\"client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)\" \
+    -var=\"tenant_id=$tenantId\" 
+"
+
 terraform plan \
     -var="personal_access_token=$azureDevopsPAT" \
     -var="org_service_url=$azureDevopsURL" \
@@ -236,6 +246,16 @@ terraform plan \
     -var="tenant_id=$tenantId" 
     
 echo "Completing Terraform Apply"
+
+echo "terraform apply -auto-approve \
+    -var=\"personal_access_token=$azureDevopsPAT\" \
+    -var=\"org_service_url=$azureDevopsURL\" \
+    -var=\"subscription_id=$subscriptionId\" \
+    -var=\"client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)\" \
+    -var=\"client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)\" \
+    -var=\"tenant_id=$tenantId\" 
+"
+
 terraform apply -auto-approve \
     -var="personal_access_token=$azureDevopsPAT" \
     -var="org_service_url=$azureDevopsURL" \
@@ -243,7 +263,8 @@ terraform apply -auto-approve \
     -var="client_id=$(echo $azureFoundry_Service_Principal | jq .appId -r)" \
     -var="client_secret=$(echo $azureFoundry_Service_Principal | jq .password -r)" \
     -var="tenant_id=$tenantId" 
-
+    
+#Ensure no Git Repo initialised in current directory
 rm -rf ./.git
 
 azureFoundry_Projects_Repo=$(terraform output ssh_url_projects)

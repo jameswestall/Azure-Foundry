@@ -3,3 +3,4 @@ NoCommit*
 *.terraform*
 .DS_Store
 reset-private.sh
+.vscode/settings.json

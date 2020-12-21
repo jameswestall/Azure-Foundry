@@ -77,6 +77,7 @@ variable "azureResourceGroups" {
     }
   ))
   default = {
+    //These base groups are required for normal operations, removing these will require updates to the map values used within the resource modules. 
     networkRG = {
       name = "NETWORK-RG01"
       tags = { "Service" = "Azure Networking" }

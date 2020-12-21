@@ -238,19 +238,17 @@ resource "azuread_application_password" "spoke-service-principal-app-password" {
 
 resource "azuread_group" "project-owner-iam-group" {
   name = "admin-azure-foundry-${var.project_object.areaPrefix}-owner"
-  description = "This group should not contain permanent members - Please leverage the generalusers iam group"
 }
 
 resource "azuread_group" "project-contributors-iam-group" {
   name = "admin-azure-foundry-${var.project_object.areaPrefix}-contributor"
-  description = "This group should not contain permanent members - Please leverage the generalusers iam group"
 }
 
 resource "azuread_group" "project-generalusers-iam-group" {
   name = "admin-azure-foundry-${var.project_object.areaPrefix}-generaluser"
 }
 
-resource "azuread_group" "project-editor-iam-group" {
+resource "azuread_group" "project-readers-iam-group" {
   name = "admin-azure-foundry-${var.project_object.areaPrefix}-reader"
 }
 
@@ -270,10 +268,78 @@ resource "azurerm_role_assignment" "project-contributor-iam-assignments" {
   count    = length(var.azureResourceGroups)
 }
 
+resource "azurerm_role_assignment" "project-readers-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Reader"
+  principal_id         = azuread_group.project-readers-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
+
 resource "azurerm_resource_group" "azureExtraResourceGroups" {
   provider = azurerm.spoke
   name     = upper("${var.project_object.areaPrefix}-${element(values(var.project_object.extraResourceGroups), count.index).name}")
   count    = length(var.project_object.extraResourceGroups)
   location = var.deployRegion
   tags     = merge(var.basetags, element(values(var.project_object.extraResourceGroups), count.index).tags, { "location" = "${var.deployRegion}" })
+}
+
+resource "azurerm_role_assignment" "project-owner-iam-assignments-extraresourcegroups" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
+  role_definition_name = "Owner"
+  principal_id         = azuread_group.project-owner-iam-group.id
+  count    = length(var.project_object.extraResourceGroups)
+}
+
+resource "azurerm_role_assignment" "project-contributor-iam-assignments-extraresourcegroups" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_group.project-contributors-iam-group.id
+  count    = length(var.project_object.extraResourceGroups)
+}
+
+resource "azurerm_role_assignment" "project-reader-iam-assignments-extraresourcegroups" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
+  role_definition_name = "Reader"
+  principal_id         = azuread_group.project-readers-iam-group.id
+  count    = length(var.project_object.extraResourceGroups)
+}
+
+resource "azurerm_role_assignment" "project-generaluser-iam-assignments-extraresourcegroups" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_group.project-generalusers-iam-group.id
+  count    = length(var.project_object.extraResourceGroups)
+}
+
+resource "azurerm_role_assignment" "project-generaluser-iam-assignments-VMContributor" {
+  provider = azurerm.spoke
+  scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["serverRG"].name}"
+  role_definition_name = "Virtual Machine Contributor"
+  principal_id         = azuread_group.project-generalusers-iam-group.id
+}
+
+resource "azurerm_role_assignment" "project-generaluser-iam-assignments-NetworkContributor" {
+  provider = azurerm.spoke
+  scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}"
+  role_definition_name = "Network Contributor"
+  principal_id         = azuread_group.project-generalusers-iam-group.id
+}
+
+resource "azurerm_role_assignment" "project-generaluser-iam-assignments-LGAContributor" {
+  provider = azurerm.spoke
+  scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["monitoringRG"].name}"
+  role_definition_name = "Log Analytics Contributor"
+  principal_id         = azuread_group.project-generalusers-iam-group.id
+}
+
+resource "azurerm_role_assignment" "project-generaluser-iam-assignments-KVTContributor" {
+  provider = azurerm.spoke
+  scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["keyvaultRG"].name}"
+  role_definition_name = "Key Vault Contributor"
+  principal_id         = azuread_group.project-generalusers-iam-group.id
 }

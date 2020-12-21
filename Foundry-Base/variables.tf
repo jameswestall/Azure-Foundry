@@ -113,7 +113,7 @@ variable "foundry_project_list" {
       vnetRange          = "192.168.0.0/22",                                                         // range to be used for spoke
       subnetCount        = "2",                                                                      //how many subnets to generate. 
       subnetExtraBits    = "2",                                                                      //how many bits to add to the CIDR of the parent. 1 with /23 would be /24
-      description        = "This is the first project scace deployed using the Azure Cloud foundry", // change as required
+      description        = "This is the first project space deployed using the Azure Cloud foundry", // change as required
       visibility         = "private",                                                                //private or public - suggest private for  repo
       version_control    = "git"                                                                     // git or tfvc 
       work_item_template = "Agile"

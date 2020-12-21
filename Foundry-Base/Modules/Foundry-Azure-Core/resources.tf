@@ -474,3 +474,43 @@ resource "azurerm_storage_account" "azurevmDiagnosticsAccount" {
 #   workspace_id = azurerm_log_analytics_workspace.azureLogAnalytics.id
 #   depends_on   = [azurerm_security_center_subscription_pricing.azureSecurityCenter-standard]
 # }
+
+resource "azuread_group" "core-owner-iam-group" {
+  name = "admin-azure-foundry-${var.areaPrefix}-owner"
+}
+
+resource "azuread_group" "core-contributors-iam-group" {
+  name = "admin-azure-foundry-${var.areaPrefix}-contributor"
+}
+
+resource "azuread_group" "core-generalusers-iam-group" {
+  name = "admin-azure-foundry-${var.areaPrefix}-generaluser"
+}
+
+resource "azuread_group" "core-readers-iam-group" {
+  name = "admin-azure-foundry-${var.areaPrefix}-reader"
+}
+
+resource "azurerm_role_assignment" "core-owner-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Owner"
+  principal_id         = azuread_group.core-owner-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
+
+resource "azurerm_role_assignment" "core-contributor-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_group.core-contributors-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
+
+resource "azurerm_role_assignment" "core-readers-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Reader"
+  principal_id         = azuread_group.core-readers-iam-group.id
+  count    = length(var.azureResourceGroups)
+}
