@@ -492,7 +492,6 @@ resource "azuread_group" "core-readers-iam-group" {
 }
 
 resource "azurerm_role_assignment" "core-owner-iam-assignments" {
-  provider = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_group.core-owner-iam-group.id
@@ -500,7 +499,6 @@ resource "azurerm_role_assignment" "core-owner-iam-assignments" {
 }
 
 resource "azurerm_role_assignment" "core-contributor-iam-assignments" {
-  provider = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Contributor"
   principal_id         = azuread_group.core-contributors-iam-group.id
@@ -508,7 +506,6 @@ resource "azurerm_role_assignment" "core-contributor-iam-assignments" {
 }
 
 resource "azurerm_role_assignment" "core-readers-iam-assignments" {
-  provider = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Reader"
   principal_id         = azuread_group.core-readers-iam-group.id

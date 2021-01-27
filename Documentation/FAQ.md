@@ -2,7 +2,7 @@
 
 ### What is the goal of this project?
 The goal of this project is to accelerate adoption of Azure, Azure DevOps and Terraform. 
-As a solution, this project does it's best to align with the Azure CAF. When adopting IaC tooling, often the biggest challenge is the learning & upskill required. 
+As a solution, this project does it's best to align with the Azure CAF. When adopting IaC tooling, often the biggest challenge is the learning & up skill required. 
 As such, this project aims to sit somewhere between the Azure CAF terraform modules and custom modules. Smaller organizations looking to accelerate within Azure should find this tool useful. 
 
 ### Can this project be better? Where can we improve it?
@@ -17,7 +17,7 @@ When raising issues with the codebase of this project please include the lines o
 
 ### Why should I use this over the Azure CAF Modules?
 In honesty, you can quite happily use either with not too much effort. Development of this solution started just before Microsoft released the CAF modules & Rover. 
-As a differentiator, this project currently deploys connected Azure DevOps projects to 
+As a differentiator, this project currently deploys connected Azure DevOps projects to your organization. 
 
 ### Isn't there a risk that users may break other projects when using this tool?
 Yes. This tooling focuses on the enablement of a centralized platform team. As secondary development/operations teams raise pull requests, it is important that this core group completes detailed reviews of each PR and calls out any major issues. At the end of the day, automated tooling only goes so far.
