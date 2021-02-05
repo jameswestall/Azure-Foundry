@@ -30,7 +30,7 @@ Using Infrastructure as Code as a driving principal, this tool initially deploys
 > . ./foundry.sh -o "Contoso" -t "00000000-0000-0000-0000-000000000000" -s "00000000-0000-0000-0000-000000000000"   -d "australiasoutheast" -a "https://dev.azure.com/foundryorg"  -u "johnsmith@contoso.com" -p "supersecretrandompersonalaccesstoken"
 
 #### Argument Reference  
-o = Organization Name to be used throughout the deployment
+o = Organization Name to be used throughout the deployment   
 t = Azure AD Tenant ID  
 s = Subscription ID for initial deployment  
 d = Initial deployment region   
