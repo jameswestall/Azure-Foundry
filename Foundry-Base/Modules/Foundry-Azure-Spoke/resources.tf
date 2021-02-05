@@ -237,19 +237,19 @@ resource "azuread_application_password" "spoke-service-principal-app-password" {
 }
 
 resource "azuread_group" "project-owner-iam-group" {
-  name = "admin-azure-foundry-${var.project_object.areaPrefix}-owner"
+  name = upper("admin-azure-foundry-${var.project_object.areaPrefix}-owner")
 }
 
 resource "azuread_group" "project-contributors-iam-group" {
-  name = "admin-azure-foundry-${var.project_object.areaPrefix}-contributor"
+  name = upper("admin-azure-foundry-${var.project_object.areaPrefix}-contributor")
 }
 
 resource "azuread_group" "project-generalusers-iam-group" {
-  name = "admin-azure-foundry-${var.project_object.areaPrefix}-generaluser"
+  name = upper("admin-azure-foundry-${var.project_object.areaPrefix}-generaluser")
 }
 
 resource "azuread_group" "project-readers-iam-group" {
-  name = "admin-azure-foundry-${var.project_object.areaPrefix}-reader"
+  name = upper("admin-azure-foundry-${var.project_object.areaPrefix}-reader")
 }
 
 resource "azurerm_role_assignment" "project-owner-iam-assignments" {
@@ -342,4 +342,17 @@ resource "azurerm_role_assignment" "project-generaluser-iam-assignments-KVTContr
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["keyvaultRG"].name}"
   role_definition_name = "Key Vault Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
+}
+
+resource "azuredevops_serviceendpoint_azurerm" "endpointazure" {
+  project_id            = var.project_id
+  service_endpoint_name = "${var.project_object.areaPrefix} - Service Principal"
+  description = "Managed by Azure Foundry (Terraform)" 
+  credentials {
+    serviceprincipalid  = azuread_application.spoke-service-principal.application_id
+    serviceprincipalkey = random_password.spoke-service-principal-password.result
+  }
+  azurerm_spn_tenantid      = var.tenant_id
+  azurerm_subscription_id   = var.subscription_id
+  azurerm_subscription_name = "Sample Subscription"
 }

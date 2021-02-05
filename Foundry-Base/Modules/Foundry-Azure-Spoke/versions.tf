@@ -9,6 +9,9 @@ terraform {
     random = {
       source = "hashicorp/random"
     }
+    azuredevops = {
+      source = "terraform-providers/azuredevops"
+    }
   }
   required_version = ">= 0.13"
 }

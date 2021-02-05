@@ -476,19 +476,19 @@ resource "azurerm_storage_account" "azurevmDiagnosticsAccount" {
 # }
 
 resource "azuread_group" "core-owner-iam-group" {
-  name = "admin-azure-foundry-${var.areaPrefix}-owner"
+  name = upper("admin-azure-foundry-${var.areaPrefix}-owner")
 }
 
 resource "azuread_group" "core-contributors-iam-group" {
-  name = "admin-azure-foundry-${var.areaPrefix}-contributor"
+  name = upper("admin-azure-foundry-${var.areaPrefix}-contributor")
 }
 
 resource "azuread_group" "core-generalusers-iam-group" {
-  name = "admin-azure-foundry-${var.areaPrefix}-generaluser"
+  name = upper("admin-azure-foundry-${var.areaPrefix}-generaluser")
 }
 
 resource "azuread_group" "core-readers-iam-group" {
-  name = "admin-azure-foundry-${var.areaPrefix}-reader"
+  name = upper("admin-azure-foundry-${var.areaPrefix}-reader")
 }
 
 resource "azurerm_role_assignment" "core-owner-iam-assignments" {

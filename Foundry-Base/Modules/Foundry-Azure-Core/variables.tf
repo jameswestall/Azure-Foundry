@@ -115,13 +115,15 @@ variable "azureFWName" {
   default = "CORE-AZURE-FW"
 }
 
-
 variable "basetags" {
   type = map
   default = {
-    createdBy          = "Azure Foundry"
-    availabilityWindow = "24/7"
-    environmentType    = "Production"
+    createdBy      = "Azure Foundry"
+    Environment    = "Production"
+    BillingCode    = "1234"
+    ExpiryDate     = "Never"
+    CreationTicket = "1234"
+    Owner          = "Contoso"
   }
 }
 
