@@ -34,9 +34,9 @@ o = Organization Name to be used throughout the deployment
 t = Azure AD Tenant ID  
 s = Subscription ID for initial deployment  
 d = Initial deployment region   
-a = Azure DevOps URL for your organisation
-u = Azure DevOps User account for PAT (Ideally a service account)
-p = Azure DevOps Personal Access Token
+a = Azure DevOps URL for your organisation 
+u = Azure DevOps User account for PAT (Ideally a service account) 
+p = Azure DevOps Personal Access Token 
 
 ## Ongoing Usage
 Post execution of the initialization script, Organizations can begin to expand on their Azure deployment, using the Azure Foundry. Create a pull request against the Azure Foundry with a project within Azure DevOps, and declare an instance of the Foundry-Azure-Spoke using your project configuration. 
