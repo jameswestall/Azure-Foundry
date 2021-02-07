@@ -225,17 +225,6 @@ resource "random_password" "spoke-service-principal-password" {
   }
 }
 
-resource "azuread_application" "spoke-service-principal" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-deployment-sp"
-}
-
-resource "azuread_application_password" "spoke-service-principal-app-password" {
-  application_object_id = azuread_application.spoke-service-principal.id
-  // description           = "Azure Devops Client Secret"
-  value    = random_password.spoke-service-principal-password.result
-  end_date = timeadd("2021-11-22T00:00:00Z", "10m") #timeadd(timestamp() , 8760h) //1 Year Validity //TODO  - Fix this
-}
-
 resource "azuread_group" "project-owner-iam-group" {
   name = upper("admin-azure-foundry-${var.project_object.areaPrefix}-owner")
 }
@@ -349,10 +338,47 @@ resource "azuredevops_serviceendpoint_azurerm" "endpointazure" {
   service_endpoint_name = "${var.project_object.areaPrefix} - Service Principal"
   description = "Managed by Azure Foundry (Terraform)" 
   credentials {
-    serviceprincipalid  = azuread_application.spoke-service-principal.application_id
+    serviceprincipalid  = azuread_application.spoke-app.application_id
     serviceprincipalkey = random_password.spoke-service-principal-password.result
   }
   azurerm_spn_tenantid      = var.tenant_id
   azurerm_subscription_id   = var.subscription_id
   azurerm_subscription_name = "Sample Subscription"
+}
+
+
+resource "azuread_application" "spoke-app" {
+  name = "azure-foundry-${var.project_object.areaPrefix}-deployment-sp"
+  available_to_other_tenants = false
+}
+
+# Create Service Principal associated with the Azure AD App
+# sleep is required for getting around this issue: https://github.com/terraform-providers/terraform-provider-azuread/issues/156
+# further detail https://github.com/Azure/AKS/issues/1206#issue-493516902
+resource "azuread_service_principal" "spoke-app-service-principal" {
+  application_id = azuread_application.spoke-app.application_id
+}
+
+
+# Create Service Principal password
+resource "azuread_service_principal_password" "spoke-app-service-principal-pw" {
+  service_principal_id = azuread_service_principal.spoke-app-service-principal.id
+  value                = random_password.spoke-service-principal-password.result
+  end_date_relative    = "17520h"
+}
+
+resource "azurerm_role_assignment" "sp-owner-iam-assignments-extraresourcegroups" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
+  role_definition_name = "Owner"
+  principal_id         = azuread_service_principal.spoke-app-service-principal.id
+  count    = length(var.project_object.extraResourceGroups)
+}
+
+resource "azurerm_role_assignment" "sp-owner-iam-assignments" {
+  provider = azurerm.spoke
+  scope                = azurerm_resource_group.azureResourceGroups[count.index].id
+  role_definition_name = "Owner"
+  principal_id         = azuread_service_principal.spoke-app-service-principal.id
+  count    = length(var.azureResourceGroups)
 }
