@@ -9,11 +9,24 @@ provider "azurerm" {
 
 provider "azurerm" {
   alias   = "spoke"
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = true
+    }
+  }
   subscription_id = var.subscription_id
   client_id       = var.client_id
   client_secret   = var.client_secret
   tenant_id       = var.tenant_id
+}
+
+data "azurerm_client_config" "spoke" {
+  provider             = azurerm.spoke
+}
+
+# Learn our public IP address
+data "http" "publicip" {
+   url = "http://icanhazip.com"
 }
 
 resource "random_string" "random" {
@@ -81,8 +94,34 @@ resource "azurerm_route_table" "azureVnetRoutes" {
   resource_group_name           = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   disable_bgp_route_propagation = false
   tags                          = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
-  depends_on                    = [azurerm_resource_group.azureResourceGroups]
+  depends_on                    = [azurerm_resource_group.azureResourceGroups] 
 }
+
+resource "azurerm_route" "azureVnetRoutes-firewallroute" {
+  provider       = azurerm.spoke
+  name                = "SPOKE-ROUTE-INTERNET"
+  resource_group_name = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name    = format("SPOKE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix      = "0.0.0.0/0"
+  next_hop_type       = "VirtualAppliance"
+  next_hop_in_ip_address = var.core_network_fw_ip
+  count                         = var.project_object.subnetCount
+  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+}
+
+#implemented to avoid issues when completing load balancing.
+#https://docs.microsoft.com/en-us/azure/firewall/integrate-lb
+resource "azurerm_route" "azureVnetRoutes-firewallroute-assymetricrouting" {
+  provider       = azurerm.spoke
+  name                = "SPOKE-ROUTE-INTERNET-LB"
+  resource_group_name = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name    = format("SPOKE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix      = "${var.core_network_fw_public_ip}/32" #TODO - Investigate using cidr() functions to do this a little neater
+  next_hop_type       = "Internet"
+  count                         = var.project_object.subnetCount
+  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+}
+
 
 resource "azurerm_subnet_route_table_association" "azureVnetRoutesAssociation" {
   provider       = azurerm.spoke
@@ -115,10 +154,56 @@ resource "azurerm_key_vault" "azureKeyVault" {
     default_action             = "Deny"
     bypass                     = "AzureServices"
     virtual_network_subnet_ids = azurerm_subnet.azureVnetSubnets.*.id
+    ip_rules = [ "${chomp(data.http.publicip.body)}" ]
+  }
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.spoke.tenant_id
+    object_id = data.azurerm_client_config.spoke.object_id
+
+    key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
+
+    certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+
+    secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+
+    storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
   }
 
   tags       = merge(var.basetags, { "Service" = "Azure Security", "location" = "${var.deployRegion}" })
   depends_on = [azurerm_resource_group.azureResourceGroups]
+}
+
+
+resource "azurerm_key_vault_access_policy" "azureKeyVault-ProjectOwnerGroup" {
+  provider = azurerm.spoke
+  key_vault_id = azurerm_key_vault.azureKeyVault.id
+  tenant_id    = var.tenant_id
+  object_id    = azuread_group.project-owner-iam-group.id
+
+  key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
+
+  certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+
+  secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+
+  storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
+}
+
+resource "azurerm_key_vault_access_policy" "azureKeyVault-ServicePrincipal" {
+  provider = azurerm.spoke
+  key_vault_id = azurerm_key_vault.azureKeyVault.id
+  tenant_id    = var.tenant_id
+  object_id = azuread_application.spoke-app.id
+  application_id = azuread_application.spoke-app.application_id
+  
+  key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
+
+  certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+
+  secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+
+  storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
 }
 
 
@@ -348,7 +433,7 @@ resource "azuredevops_serviceendpoint_azurerm" "endpointazure" {
 
 
 resource "azuread_application" "spoke-app" {
-  name = "azure-foundry-${var.project_object.areaPrefix}-deployment-sp"
+  name = upper("azure-foundry-${var.project_object.areaPrefix}-deployment-sp")
   available_to_other_tenants = false
 }
 
@@ -357,6 +442,28 @@ resource "azuread_application" "spoke-app" {
 # further detail https://github.com/Azure/AKS/issues/1206#issue-493516902
 resource "azuread_service_principal" "spoke-app-service-principal" {
   application_id = azuread_application.spoke-app.application_id
+}
+
+
+resource "azurerm_key_vault_secret" "kvs-management-sp-name" {
+  provider = azurerm.spoke
+  name         = "${var.project_object.areaPrefix}-management-sp-name"
+  value        = upper("azure-foundry-${var.project_object.areaPrefix}-deployment-sp")
+  key_vault_id = azurerm_key_vault.azureKeyVault.id
+}
+
+resource "azurerm_key_vault_secret" "kvs-management-sp-appid" {
+  provider = azurerm.spoke
+  name         = "${var.project_object.areaPrefix}-management-sp-appid"
+  value        = azuread_application.spoke-app.application_id
+  key_vault_id = azurerm_key_vault.azureKeyVault.id
+}
+
+resource "azurerm_key_vault_secret" "kvs-management-sp-secret" {
+  provider = azurerm.spoke
+  name         = "${var.project_object.areaPrefix}-management-sp-secret"
+  value        = random_password.spoke-service-principal-password.result
+  key_vault_id = azurerm_key_vault.azureKeyVault.id
 }
 
 

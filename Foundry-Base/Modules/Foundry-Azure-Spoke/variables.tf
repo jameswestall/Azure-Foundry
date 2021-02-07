@@ -24,6 +24,10 @@ variable "core_network_fw_ip" {
   type = string
 }
 
+variable "core_network_fw_public_ip" {
+  type = string
+}
+
 variable "core_network_rg_name" {
   type = string
 }

@@ -29,8 +29,9 @@ module "Foundry-Project-Areas-Project1" {
   tenant_id            = var.tenant_id
   core_network_id      = module.Foundry-Azure-Core.core_network_id
   core_network_fw_ip   = module.Foundry-Azure-Core.core_network_fw_ip
-  core_network_name    = "CORE-VNET-01"
-  core_network_rg_name = "CORE-NETWORK-RG01"
+  core_network_name    = module.Foundry-Azure-Core.core_network_name
+  core_network_rg_name = module.Foundry-Azure-Core.core_network_rg_name
+  core_network_fw_public_ip = module.Foundry-Azure-Core.core_network_fw_public_ip
   #When Copy-Pasting this module declaration, only the following variables require updates, provided that each project is correctly defined. 
   project_object  = var.foundry_project_list["project1"]
   subscription_id = var.foundry_project_list["project1"].subscription_id

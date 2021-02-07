@@ -59,6 +59,29 @@ resource "azurerm_route_table" "azureVnetRoutes" {
   depends_on                    = [azurerm_resource_group.azureResourceGroups]
 }
 
+resource "azurerm_route" "azureVnetRoutes-firewallroute" {
+  name                = "CORE-ROUTE-INTERNET"
+  resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name    = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix      = "0.0.0.0/0"
+  next_hop_type       = "VirtualAppliance"
+  next_hop_in_ip_address = azurerm_firewall.azureFirewall.ip_configuration[0].private_ip_address
+  count                         = length(var.azureSubnetRanges)
+  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+}
+
+#implemented to avoid issues when completing load balancing.
+#https://docs.microsoft.com/en-us/azure/firewall/integrate-lb
+resource "azurerm_route" "azureVnetRoutes-firewallroute-assymetricrouting" {
+  name                = "CORE-ROUTE-INTERNET-LB"
+  resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name    = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix      = "${azurerm_public_ip.azureVnetFirewallIP.ip_address}/32" #TODO - Investigate using cidr() functions to do this a little neater
+  next_hop_type       = "Internet"
+  count                         = length(var.azureSubnetRanges)
+  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+}
+
 resource "azurerm_subnet" "azureVnetSubnets" {
   name                 = format("CORE-VNET-PROD-SUB%02s", count.index + 1)
   resource_group_name  = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
@@ -221,6 +244,7 @@ resource "azurerm_firewall" "azureFirewall" {
   name                = var.azureFWName
   location            = var.deployRegion
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  threat_intel_mode = "Deny"
 
   ip_configuration {
     name                 = "configuration"
@@ -243,6 +267,15 @@ resource "azurerm_firewall_network_rule_collection" "azureFirewall-dns" {
     destination_addresses = ["8.8.8.8", "8.8.4.4", "9.9.9.9", "1.1.1.1", "1.0.0.1"]
     protocols             = ["TCP", "UDP"]
   }
+
+  # support for this service is currently missing from Azure Firewall. 
+  # rule {
+  #   name                  = "Allow-DNS-Tag"
+  #   source_addresses      = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+  #   destination_ports     = ["53"]
+  #   destination_addresses = ["AzurePlatformDNS"]
+  #   protocols             = ["TCP", "UDP"]
+  # }
 }
 
 #Create a Azure Firewall Network Rule for Azure Active Directoy
@@ -255,11 +288,30 @@ resource "azurerm_firewall_network_rule_collection" "azureFirewall-aad" {
   rule {
     name                  = "Allow-AzureAD"
     source_addresses      = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
-    destination_ports     = ["25"]
+    destination_ports     = ["*"]
     destination_addresses = ["AzureActiveDirectory"]
     protocols             = ["TCP", "UDP"]
   }
 }
+
+
+# Support for this service is currently missing from Azure Firewall. 
+# For supported tags, see: https://docs.microsoft.com/en-us/azure/virtual-network/service-tags-overview#available-service-tags
+# #Create a Azure Firewall Network Rule for Microsoft key activation
+# resource "azurerm_firewall_network_rule_collection" "azureFirewall-lkm" {
+#   name                = "azure-firewall-azure-lkm-rule"
+#   azure_firewall_name = azurerm_firewall.azureFirewall.name
+#   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+#   priority            = 108
+#   action              = "Allow"
+#   rule {
+#     name                  = "Allow-MicrosoftLKM"
+#     source_addresses      = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+#     destination_ports     = ["*"]
+#     destination_addresses = ["AzurePlatformLKM"]
+#     protocols             = ["TCP", "UDP"]
+#   }
+# }
 
 # Create a Azure Firewall Application Rule for Windows Update
 resource "azurerm_firewall_application_rule_collection" "azureFirewall-windowsupdate" {
@@ -274,6 +326,9 @@ resource "azurerm_firewall_application_rule_collection" "azureFirewall-windowsup
     fqdn_tags        = ["WindowsUpdate"]
   }
 }
+
+#TODO - Pending firewall support for decent service tags
+# Implemented deny all by default ruleset. 
 
 resource "azurerm_storage_account" "azureCloudShellAccount" {
   name                     = "cloudshell${random_string.random.result}"
