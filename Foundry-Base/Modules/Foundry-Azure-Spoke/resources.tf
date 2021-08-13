@@ -1,5 +1,5 @@
 provider "azurerm" {
-  alias   = "core"
+  alias = "core"
   features {}
   subscription_id = var.core_subscription_id
   client_id       = var.client_id
@@ -8,7 +8,7 @@ provider "azurerm" {
 }
 
 provider "azurerm" {
-  alias   = "spoke"
+  alias = "spoke"
   features {
     key_vault {
       purge_soft_delete_on_destroy = true
@@ -21,12 +21,12 @@ provider "azurerm" {
 }
 
 data "azurerm_client_config" "spoke" {
-  provider             = azurerm.spoke
+  provider = azurerm.spoke
 }
 
 # Learn our public IP address
 data "http" "publicip" {
-   url = "http://icanhazip.com"
+  url = "http://icanhazip.com"
 }
 
 resource "random_string" "random" {
@@ -94,32 +94,32 @@ resource "azurerm_route_table" "azureVnetRoutes" {
   resource_group_name           = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   disable_bgp_route_propagation = false
   tags                          = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
-  depends_on                    = [azurerm_resource_group.azureResourceGroups] 
+  depends_on                    = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_route" "azureVnetRoutes-firewallroute" {
-  provider       = azurerm.spoke
-  name                = "SPOKE-ROUTE-INTERNET"
-  resource_group_name = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
-  route_table_name    = format("SPOKE-VNET-RTBL-SUB%02s", count.index + 1)
-  address_prefix      = "0.0.0.0/0"
-  next_hop_type       = "VirtualAppliance"
+  provider               = azurerm.spoke
+  name                   = "SPOKE-ROUTE-INTERNET"
+  resource_group_name    = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name       = format("SPOKE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
   next_hop_in_ip_address = var.core_network_fw_ip
-  count                         = var.project_object.subnetCount
-  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+  count                  = var.project_object.subnetCount
+  depends_on             = [azurerm_route_table.azureVnetRoutes]
 }
 
 #implemented to avoid issues when completing load balancing.
 #https://docs.microsoft.com/en-us/azure/firewall/integrate-lb
 resource "azurerm_route" "azureVnetRoutes-firewallroute-assymetricrouting" {
-  provider       = azurerm.spoke
+  provider            = azurerm.spoke
   name                = "SPOKE-ROUTE-INTERNET-LB"
   resource_group_name = upper("${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   route_table_name    = format("SPOKE-VNET-RTBL-SUB%02s", count.index + 1)
   address_prefix      = "${var.core_network_fw_public_ip}/32" #TODO - Investigate using cidr() functions to do this a little neater
   next_hop_type       = "Internet"
-  count                         = var.project_object.subnetCount
-  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+  count               = var.project_object.subnetCount
+  depends_on          = [azurerm_route_table.azureVnetRoutes]
 }
 
 
@@ -144,7 +144,6 @@ resource "azurerm_key_vault" "azureKeyVault" {
   location                        = var.deployRegion
   enabled_for_disk_encryption     = true
   tenant_id                       = var.tenant_id
-  soft_delete_enabled             = true
   purge_protection_enabled        = false
   enabled_for_template_deployment = true
   enabled_for_deployment          = true
@@ -154,20 +153,20 @@ resource "azurerm_key_vault" "azureKeyVault" {
     default_action             = "Deny"
     bypass                     = "AzureServices"
     virtual_network_subnet_ids = azurerm_subnet.azureVnetSubnets.*.id
-    ip_rules = [ "${chomp(data.http.publicip.body)}" ]
+    ip_rules                   = ["${chomp(data.http.publicip.body)}"]
   }
 
   access_policy {
     tenant_id = data.azurerm_client_config.spoke.tenant_id
     object_id = data.azurerm_client_config.spoke.object_id
 
-    key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
+    key_permissions = ["backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify", "wrapKey"]
 
-    certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+    certificate_permissions = ["backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update"]
 
-    secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+    secret_permissions = ["backup", "delete", "get", "list", "purge", "recover", "restore", "set"]
 
-    storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
+    storage_permissions = ["backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas", "update"]
   }
 
   tags       = merge(var.basetags, { "Service" = "Azure Security", "location" = "${var.deployRegion}" })
@@ -176,34 +175,34 @@ resource "azurerm_key_vault" "azureKeyVault" {
 
 
 resource "azurerm_key_vault_access_policy" "azureKeyVault-ProjectOwnerGroup" {
-  provider = azurerm.spoke
+  provider     = azurerm.spoke
   key_vault_id = azurerm_key_vault.azureKeyVault.id
   tenant_id    = var.tenant_id
   object_id    = azuread_group.project-owner-iam-group.id
 
-  key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
+  key_permissions = ["backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify", "wrapKey"]
 
-  certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+  certificate_permissions = ["backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update"]
 
-  secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+  secret_permissions = ["backup", "delete", "get", "list", "purge", "recover", "restore", "set"]
 
-  storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
+  storage_permissions = ["backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas", "update"]
 }
 
 resource "azurerm_key_vault_access_policy" "azureKeyVault-ServicePrincipal" {
-  provider = azurerm.spoke
-  key_vault_id = azurerm_key_vault.azureKeyVault.id
-  tenant_id    = var.tenant_id
-  object_id = azuread_application.spoke-app.id
+  provider       = azurerm.spoke
+  key_vault_id   = azurerm_key_vault.azureKeyVault.id
+  tenant_id      = var.tenant_id
+  object_id      = azuread_application.spoke-app.id
   application_id = azuread_application.spoke-app.application_id
-  
-  key_permissions = [ "backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify" , "wrapKey" ]
 
-  certificate_permissions = [ "backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update" ]
+  key_permissions = ["backup", "create", "decrypt", "delete", "encrypt", "get", "import", "list", "purge", "recover", "restore", "sign", "unwrapKey", "update", "verify", "wrapKey"]
 
-  secret_permissions = [ "backup", "delete", "get", "list", "purge", "recover", "restore" , "set" ]
+  certificate_permissions = ["backup", "create", "delete", "deleteissuers", "get", "getissuers", "import", "list", "listissuers", "managecontacts", "manageissuers", "purge", "recover", "restore", "setissuers", "update"]
 
-  storage_permissions = [ "backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas" , "update" ]
+  secret_permissions = ["backup", "delete", "get", "list", "purge", "recover", "restore", "set"]
+
+  storage_permissions = ["backup", "delete", "deletesas", "get", "getsas", "list", "listsas", "purge", "recover", "regeneratekey", "restore", "set", "setsas", "update"]
 }
 
 
@@ -298,7 +297,7 @@ resource "azurerm_virtual_network_peering" "core-to-spoke" {
   resource_group_name       = var.core_network_rg_name
   virtual_network_name      = var.core_network_name
   remote_virtual_network_id = azurerm_virtual_network.azureVnet.id
-  allow_gateway_transit = true
+  allow_gateway_transit     = true
 }
 
 resource "random_password" "spoke-service-principal-password" {
@@ -327,27 +326,27 @@ resource "azuread_group" "project-readers-iam-group" {
 }
 
 resource "azurerm_role_assignment" "project-owner-iam-assignments" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_group.project-owner-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-contributor-iam-assignments" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Contributor"
   principal_id         = azuread_group.project-contributors-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-readers-iam-assignments" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Reader"
   principal_id         = azuread_group.project-readers-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
 
 resource "azurerm_resource_group" "azureExtraResourceGroups" {
@@ -359,60 +358,60 @@ resource "azurerm_resource_group" "azureExtraResourceGroups" {
 }
 
 resource "azurerm_role_assignment" "project-owner-iam-assignments-extraresourcegroups" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_group.project-owner-iam-group.id
-  count    = length(var.project_object.extraResourceGroups)
+  count                = length(var.project_object.extraResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-contributor-iam-assignments-extraresourcegroups" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
   role_definition_name = "Contributor"
   principal_id         = azuread_group.project-contributors-iam-group.id
-  count    = length(var.project_object.extraResourceGroups)
+  count                = length(var.project_object.extraResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-reader-iam-assignments-extraresourcegroups" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
   role_definition_name = "Reader"
   principal_id         = azuread_group.project-readers-iam-group.id
-  count    = length(var.project_object.extraResourceGroups)
+  count                = length(var.project_object.extraResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-generaluser-iam-assignments-extraresourcegroups" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
   role_definition_name = "Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
-  count    = length(var.project_object.extraResourceGroups)
+  count                = length(var.project_object.extraResourceGroups)
 }
 
 resource "azurerm_role_assignment" "project-generaluser-iam-assignments-VMContributor" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["serverRG"].name}"
   role_definition_name = "Virtual Machine Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
 }
 
 resource "azurerm_role_assignment" "project-generaluser-iam-assignments-NetworkContributor" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["networkRG"].name}"
   role_definition_name = "Network Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
 }
 
 resource "azurerm_role_assignment" "project-generaluser-iam-assignments-LGAContributor" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["monitoringRG"].name}"
   role_definition_name = "Log Analytics Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
 }
 
 resource "azurerm_role_assignment" "project-generaluser-iam-assignments-KVTContributor" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.project_object.areaPrefix}-${var.azureResourceGroups["keyvaultRG"].name}"
   role_definition_name = "Key Vault Contributor"
   principal_id         = azuread_group.project-generalusers-iam-group.id
@@ -421,7 +420,7 @@ resource "azurerm_role_assignment" "project-generaluser-iam-assignments-KVTContr
 resource "azuredevops_serviceendpoint_azurerm" "endpointazure" {
   project_id            = var.project_id
   service_endpoint_name = "${var.project_object.areaPrefix} - Service Principal"
-  description = "Managed by Azure Foundry (Terraform)" 
+  description           = "Managed by Azure Foundry (Terraform)"
   credentials {
     serviceprincipalid  = azuread_application.spoke-app.application_id
     serviceprincipalkey = random_password.spoke-service-principal-password.result
@@ -433,7 +432,7 @@ resource "azuredevops_serviceendpoint_azurerm" "endpointazure" {
 
 
 resource "azuread_application" "spoke-app" {
-  name = upper("azure-foundry-${var.project_object.areaPrefix}-deployment-sp")
+  name                       = upper("azure-foundry-${var.project_object.areaPrefix}-deployment-sp")
   available_to_other_tenants = false
 }
 
@@ -446,21 +445,21 @@ resource "azuread_service_principal" "spoke-app-service-principal" {
 
 
 resource "azurerm_key_vault_secret" "kvs-management-sp-name" {
-  provider = azurerm.spoke
+  provider     = azurerm.spoke
   name         = "${var.project_object.areaPrefix}-management-sp-name"
   value        = upper("azure-foundry-${var.project_object.areaPrefix}-deployment-sp")
   key_vault_id = azurerm_key_vault.azureKeyVault.id
 }
 
 resource "azurerm_key_vault_secret" "kvs-management-sp-appid" {
-  provider = azurerm.spoke
+  provider     = azurerm.spoke
   name         = "${var.project_object.areaPrefix}-management-sp-appid"
   value        = azuread_application.spoke-app.application_id
   key_vault_id = azurerm_key_vault.azureKeyVault.id
 }
 
 resource "azurerm_key_vault_secret" "kvs-management-sp-secret" {
-  provider = azurerm.spoke
+  provider     = azurerm.spoke
   name         = "${var.project_object.areaPrefix}-management-sp-secret"
   value        = random_password.spoke-service-principal-password.result
   key_vault_id = azurerm_key_vault.azureKeyVault.id
@@ -475,17 +474,17 @@ resource "azuread_service_principal_password" "spoke-app-service-principal-pw" {
 }
 
 resource "azurerm_role_assignment" "sp-owner-iam-assignments-extraresourcegroups" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureExtraResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_service_principal.spoke-app-service-principal.id
-  count    = length(var.project_object.extraResourceGroups)
+  count                = length(var.project_object.extraResourceGroups)
 }
 
 resource "azurerm_role_assignment" "sp-owner-iam-assignments" {
-  provider = azurerm.spoke
+  provider             = azurerm.spoke
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_service_principal.spoke-app-service-principal.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }

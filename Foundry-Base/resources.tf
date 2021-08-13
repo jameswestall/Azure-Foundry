@@ -3,6 +3,76 @@ module "Foundry-DevOps-Central-Project" {
   azure_devops_project = var.azure_foundry_base
 }
 
+
+resource "azuredevops_variable_group" "variablegroup" {
+  project_id   = module.Foundry-DevOps-Central-Project.id
+  name         = "Azure-Foundry-Variable-Group"
+  description  = "Contains Secrets relevant to Azure Foundry operations"
+  allow_access = true
+
+  variable {
+    name         = "backend_storage_account_name"
+    value = var.backend_storage_account_name
+  }
+
+  variable {
+    name         = "backend_container_name"
+    value = var.backend_container_name
+  }
+
+  variable {
+    name         = "foundry_project_backend_key"
+    value = var.foundry_project_backend_key
+  }
+
+  variable {
+    name         = "foundry_mgmt_backend_key"
+    value = var.foundry_mgmt_backend_key
+  }
+
+  variable {
+    name         = "ARM_CLIENT_ID"
+    secret_value = var.client_id
+    is_secret    = true
+  }
+
+  variable {
+    name         = "ARM_SUBSCRIPTION_ID"
+    secret_value = var.subscription_id
+    is_secret    = true
+  }
+
+  variable {
+    name         = "ARM_TENANT_ID"
+    secret_value = var.tenant_id
+    is_secret    = true
+  }
+
+  variable {
+    name         = "ARM_CLIENT_SECRET"
+    secret_value = var.client_secret
+    is_secret    = true
+  }
+
+  variable {
+    name         = "ARM_ACCESS_KEY"
+    secret_value = var.backend_storage_account_key
+    is_secret    = true
+  }
+
+  variable {
+    name         = "AZDO_ORG_SERVICE_URL"
+    secret_value = var.org_service_url
+    is_secret    = true
+  }
+
+  variable {
+    name         = "AZDO_PERSONAL_ACCESS_TOKEN"
+    secret_value = var.personal_access_token
+    is_secret    = true
+  }
+}
+
 module "Foundry-DevOps-Projects" {
   source               = "./Modules/Foundry-Azure-DevOps-Project"
   for_each             = var.foundry_project_list

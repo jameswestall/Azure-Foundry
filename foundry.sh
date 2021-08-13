@@ -3,6 +3,9 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
+TF_LOG_PATH=./tftrace.log
+TF_LOG=Trace
+
 usage() {
     cat <<EOF
 
@@ -223,15 +226,15 @@ do
         then
             read -p "Please provide a Subscription ID: " subscriptionId
         fi
-        if [ -z "$azureDevopsURL" ]
+        if [ -z "$azureDevOpsOrgUrl" ]
         then
             read -p "Please provide a Azure Devops URL: " azureDevopsURL
         fi
-        if [ -z "$azureDevopsUsername" ]
+        if [ -z "$azureDevOpsUserAccount" ]
         then
             read -p "Please provide a Azure Devops Username: " azureDevopsUsername
         fi
-        if [ -z "$azureDevopsPAT" ]
+        if [ -z "$azureDevOpsPAT" ]
         then
             read -s -p "Please provide a Azure Devops PAT: " azureDevopsPAT
         fi
@@ -338,45 +341,57 @@ terraform init \
     -backend-config="container_name=azurefoundrystate" \
     -backend-config="key=azurefoundrybase.terraform.tfstate" \
 
-
 msg "Completing Terraform Plan"
 
+#Required as a workaround to this issue: https://github.com/microsoft/terraform-provider-azuredevops/issues/296
+export AZDO_PERSONAL_ACCESS_TOKEN=$azureDevOpsPAT
+export AZDO_ORG_SERVICE_URL=$azureDevOpsOrgUrl
+
 msg "terraform plan \
-    -var=\"personal_access_token=$azureDevopsPAT\" \
-    -var=\"org_service_url=$azureDevopsURL\" \
+    -var=\"personal_access_token=$azureDevOpsPAT\" \
+    -var=\"org_service_url=$azureDevOpsOrgUrl\" \
     -var=\"subscription_id=$subscriptionId\" \
     -var=\"client_id=$azureFoundry_Service_PrincipalAppId\" \
     -var=\"client_secret=$azureFoundry_Service_PrincipalSecret\" \
-    -var=\"tenant_id=$tenantId\" 
+    -var=\"tenant_id=$tenantId\" \
+    -var=\"backend_storage_account_key=$ARM_ACCESS_KEY\" \
+    -var=\"backend_storage_account_name=${orgLower}afstate\" \
 "
 
 terraform plan \
-    -var="personal_access_token=$azureDevopsPAT" \
-    -var="org_service_url=$azureDevopsURL" \
+    -var="personal_access_token=$azureDevOpsPAT" \
+    -var="org_service_url=$azureDevOpsOrgUrl" \
     -var="subscription_id=$subscriptionId" \
     -var="client_id=$azureFoundry_Service_PrincipalAppId" \
     -var="client_secret=$azureFoundry_Service_PrincipalSecret" \
-    -var="tenant_id=$tenantId" 
+    -var="tenant_id=$tenantId" \
+    -var="backend_storage_account_key=$ARM_ACCESS_KEY" \
+    -var="backend_storage_account_name=${orgLower}afstate" \
+
     
 msg "Completing Terraform Apply"
 
 msg "terraform apply -auto-approve \
-    -var=\"personal_access_token=$azureDevopsPAT\" \
-    -var=\"org_service_url=$azureDevopsURL\" \
+    -var=\"personal_access_token=$azureDevOpsPAT\" \
+    -var=\"org_service_url=$azureDevOpsOrgUrl\" \
     -var=\"subscription_id=$subscriptionId\" \
     -var=\"client_id=$azureFoundry_Service_PrincipalAppId\" \
     -var=\"client_secret=$(msg $azureFoundry_Service_Principal | jq .password -r)\" \
-    -var=\"tenant_id=$tenantId\" 
+    -var=\"tenant_id=$tenantId\" \
+    -var=\"backend_storage_account_key=$ARM_ACCESS_KEY\" \
+    -var=\"backend_storage_account_name=${orgLower}afstate\" \
 "
 
 terraform apply -auto-approve \
-    -var="personal_access_token=$azureDevopsPAT" \
-    -var="org_service_url=$azureDevopsURL" \
+    -var="personal_access_token=$azureDevOpsPAT" \
+    -var="org_service_url=$azureDevOpsOrgUrl" \
     -var="subscription_id=$subscriptionId" \
     -var="client_id=$azureFoundry_Service_PrincipalAppId" \
     -var="client_secret=$azureFoundry_Service_PrincipalSecret" \
-    -var="tenant_id=$tenantId" 
-    
+    -var="tenant_id=$tenantId" \
+    -var="backend_storage_account_key=$ARM_ACCESS_KEY" \
+    -var="backend_storage_account_name=${orgLower}afstate" \
+
 #Ensure no Git Repo initialised in current directory
 rm -rf ./.git
 

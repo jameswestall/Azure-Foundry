@@ -11,7 +11,7 @@ output "core_network_fw_public_ip" {
 }
 
 output "core_network_name" {
-  value =  azurerm_virtual_network.azureVnet.name
+  value = azurerm_virtual_network.azureVnet.name
 }
 
 output "core_network_rg_name" {

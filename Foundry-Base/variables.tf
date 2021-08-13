@@ -1,25 +1,36 @@
 variable "org_service_url" {
-  type = string
+  type      = string
+  #sensitive = true
 }
 
 variable "personal_access_token" {
-  type = string
+  type      = string
+  #sensitive = true
+}
+
+variable "backend_storage_account_key" {
+  type      = string
+  sensitive = true
 }
 
 variable "client_id" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "client_secret" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "tenant_id" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "subscription_id" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "customerName" {
@@ -30,6 +41,26 @@ variable "customerName" {
 variable "deployRegion" {
   type    = string
   default = "australiasoutheast"
+}
+
+variable "backend_storage_account_name" {
+  type      = string
+  sensitive = true
+}
+
+variable "backend_container_name" {
+  type      = string
+  default = "azurefoundrystate"
+}
+
+variable "foundry_project_backend_key" {
+  type      = string
+  default   = "azurefoundrybase.terraform.tfstate"
+}
+
+variable "foundry_mgmt_backend_key" {
+  type      = string
+  default   = "azurefoundrymgmt.terraform.tfstate"
 }
 
 //base project for all Azure Foundry resources. 

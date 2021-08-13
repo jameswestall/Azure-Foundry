@@ -1,14 +1,12 @@
 terraform {
   required_providers {
-    azuread = {
-      source = "hashicorp/azuread"
-    }
     azuredevops = {
-      source = "terraform-providers/azuredevops"
+      source = "microsoft/azuredevops"
     }
     random = {
       source = "hashicorp/random"
     }
   }
   required_version = ">= 0.13"
+  backend "azurerm" {}
 }

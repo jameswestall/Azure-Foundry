@@ -21,7 +21,7 @@ resource "azurerm_resource_group" "azureResourceGroups" {
   name     = upper("${var.areaPrefix}-${element(values(var.azureResourceGroups), count.index).name}")
   count    = length(var.azureResourceGroups)
   location = var.deployRegion
-  tags     = merge(var.basetags, element(values(var.azureResourceGroups), count.index).tags, { "location" = "${var.deployRegion}" })
+  tags     = merge(var.basetags, element(values(var.azureResourceGroups), count.index).tags, { "location" = var.deployRegion })
 }
 
 resource "azurerm_virtual_network" "azureVnet" {
@@ -30,7 +30,7 @@ resource "azurerm_virtual_network" "azureVnet" {
   location            = var.deployRegion
   address_space       = var.vnetRanges
   depends_on          = [azurerm_resource_group.azureResourceGroups, azurerm_network_watcher.azureNetworkWatcher]
-  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = var.deployRegion })
 }
 
 resource "azurerm_network_watcher" "azureNetworkWatcher" {
@@ -45,7 +45,7 @@ resource "azurerm_network_security_group" "azureVnetNsgs" {
   location            = var.deployRegion
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   count               = length(var.azureSubnetRanges)
-  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = var.deployRegion })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -55,19 +55,19 @@ resource "azurerm_route_table" "azureVnetRoutes" {
   location                      = var.deployRegion
   resource_group_name           = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   disable_bgp_route_propagation = false
-  tags                          = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                          = merge(var.basetags, { "Service" = "Azure Networking", "location" = var.deployRegion })
   depends_on                    = [azurerm_resource_group.azureResourceGroups]
 }
 
 resource "azurerm_route" "azureVnetRoutes-firewallroute" {
-  name                = "CORE-ROUTE-INTERNET"
-  resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
-  route_table_name    = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
-  address_prefix      = "0.0.0.0/0"
-  next_hop_type       = "VirtualAppliance"
+  name                   = "CORE-ROUTE-INTERNET"
+  resource_group_name    = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
+  route_table_name       = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
   next_hop_in_ip_address = azurerm_firewall.azureFirewall.ip_configuration[0].private_ip_address
-  count                         = length(var.azureSubnetRanges)
-  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+  count                  = length(var.azureSubnetRanges)
+  depends_on             = [azurerm_route_table.azureVnetRoutes]
 }
 
 #implemented to avoid issues when completing load balancing.
@@ -78,8 +78,8 @@ resource "azurerm_route" "azureVnetRoutes-firewallroute-assymetricrouting" {
   route_table_name    = format("CORE-VNET-RTBL-SUB%02s", count.index + 1)
   address_prefix      = "${azurerm_public_ip.azureVnetFirewallIP.ip_address}/32" #TODO - Investigate using cidr() functions to do this a little neater
   next_hop_type       = "Internet"
-  count                         = length(var.azureSubnetRanges)
-  depends_on                    = [azurerm_route_table.azureVnetRoutes]
+  count               = length(var.azureSubnetRanges)
+  depends_on          = [azurerm_route_table.azureVnetRoutes]
 }
 
 resource "azurerm_subnet" "azureVnetSubnets" {
@@ -108,7 +108,7 @@ resource "azurerm_subnet" "azureVnetGatewaySN" {
   name                 = "GatewaySubnet"
   resource_group_name  = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name = var.vnetName
-  address_prefixes     = ["${var.azureGWSubnetRange}"]
+  address_prefixes     = [var.azureGWSubnetRange]
   depends_on           = [azurerm_virtual_network.azureVnet]
 }
 
@@ -116,7 +116,7 @@ resource "azurerm_subnet" "azureVnetPrivateEndpointSN" {
   name                 = "PrivateEndpointSubnet"
   resource_group_name  = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name = var.vnetName
-  address_prefixes     = ["${var.pepSubnetRange}"]
+  address_prefixes     = [var.pepSubnetRange]
   depends_on           = [azurerm_virtual_network.azureVnet]
 }
 
@@ -124,7 +124,7 @@ resource "azurerm_subnet" "azureVnetFirewallSN" {
   name                 = "AzureFirewallSubnet"
   resource_group_name  = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name = var.vnetName
-  address_prefixes     = ["${var.azureFWSubnetRange}"]
+  address_prefixes     = [var.azureFWSubnetRange]
   depends_on           = [azurerm_virtual_network.azureVnet]
 }
 
@@ -132,7 +132,7 @@ resource "azurerm_subnet" "azureVnetBastionSN" {
   name                 = "AzureBastionSubnet"
   resource_group_name  = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   virtual_network_name = var.vnetName
-  address_prefixes     = ["${var.bastionSubnetRange}"]
+  address_prefixes     = [var.bastionSubnetRange]
   depends_on           = [azurerm_virtual_network.azureVnet]
 }
 
@@ -141,7 +141,7 @@ resource "azurerm_network_security_group" "azureVnetBastionNSG" {
   name                = "CORE-VNET-NSG-AzureBastionSubnet"
   location            = var.deployRegion
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
-  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Networking", "location" = var.deployRegion })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -194,7 +194,7 @@ resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowSshRdpOutboun
   access                      = "Allow"
   protocol                    = "*"
   source_port_range           = "*"
-  destination_port_ranges      = ["22","3389"]
+  destination_port_ranges     = ["22", "3389"]
   source_address_prefix       = "*"
   destination_address_prefix  = "VirtualNetwork"
   resource_group_name         = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
@@ -220,7 +220,7 @@ resource "azurerm_network_security_rule" "azureVnetBastionNSG-AllowAzureCloudOut
 resource "azurerm_subnet_network_security_group_association" "azureVnetBastionNSGAssociation" {
   subnet_id                 = azurerm_subnet.azureVnetBastionSN.id
   network_security_group_id = azurerm_network_security_group.azureVnetBastionNSG.id
-  depends_on = [azurerm_network_security_rule.azureVnetBastionNSG-AllowHttpsInbound-Rule , azurerm_network_security_rule.azureVnetBastionNSG-AllowSshRdpOutbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureLBInbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowGWManagerInbound-Rule ,azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureCloudOutbound-Rule]
+  depends_on                = [azurerm_network_security_rule.azureVnetBastionNSG-AllowHttpsInbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowSshRdpOutbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureLBInbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowGWManagerInbound-Rule, azurerm_network_security_rule.azureVnetBastionNSG-AllowAzureCloudOutbound-Rule]
 }
 
 resource "azurerm_subnet" "azureVnetWAFSN" {
@@ -237,14 +237,14 @@ resource "azurerm_public_ip" "azureVnetFirewallIP" {
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
   allocation_method   = "Static"
   sku                 = "Standard"
-  depends_on           = [azurerm_virtual_network.azureVnet]
+  depends_on          = [azurerm_virtual_network.azureVnet]
 }
 
 resource "azurerm_firewall" "azureFirewall" {
   name                = var.azureFWName
   location            = var.deployRegion
   resource_group_name = upper("${var.areaPrefix}-${var.azureResourceGroups["networkRG"].name}")
-  threat_intel_mode = "Deny"
+  threat_intel_mode   = "Deny"
 
   ip_configuration {
     name                 = "configuration"
@@ -336,7 +336,7 @@ resource "azurerm_storage_account" "azureCloudShellAccount" {
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "GRS"
-  tags                     = merge(var.basetags, { "Service" = "Azure Management", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Management", "location" = var.deployRegion })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -352,7 +352,6 @@ resource "azurerm_key_vault" "azureKeyVault" {
   location                        = var.deployRegion
   enabled_for_disk_encryption     = true
   tenant_id                       = data.azurerm_client_config.current.tenant_id
-  soft_delete_enabled             = true
   purge_protection_enabled        = false
   enabled_for_template_deployment = true
   enabled_for_deployment          = true
@@ -364,7 +363,7 @@ resource "azurerm_key_vault" "azureKeyVault" {
     virtual_network_subnet_ids = azurerm_subnet.azureVnetSubnets.*.id
   }
 
-  tags       = merge(var.basetags, { "Service" = "Azure Security", "location" = "${var.deployRegion}" })
+  tags       = merge(var.basetags, { "Service" = "Azure Security", "location" = var.deployRegion })
   depends_on = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -374,7 +373,7 @@ resource "azurerm_recovery_services_vault" "azureBackupVault" {
   location            = var.deployRegion
   sku                 = "Standard"
   soft_delete_enabled = true
-  tags                = merge(var.basetags, { "Service" = "Azure Backup", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Backup", "location" = var.deployRegion })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -476,7 +475,7 @@ resource "azurerm_log_analytics_workspace" "azureLogAnalytics" {
   location            = var.deployRegion
   sku                 = "PerGB2018"
   retention_in_days   = 30
-  tags                = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = var.deployRegion })
   depends_on          = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -486,7 +485,7 @@ resource "azurerm_storage_account" "azureFlowLogsAccount" {
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = var.deployRegion })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -516,7 +515,7 @@ resource "azurerm_storage_account" "azurevmDiagnosticsAccount" {
   location                 = var.deployRegion
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = "${var.deployRegion}" })
+  tags                     = merge(var.basetags, { "Service" = "Azure Monitoring", "location" = var.deployRegion })
   depends_on               = [azurerm_resource_group.azureResourceGroups]
 }
 
@@ -550,19 +549,19 @@ resource "azurerm_role_assignment" "core-owner-iam-assignments" {
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Owner"
   principal_id         = azuread_group.core-owner-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
 
 resource "azurerm_role_assignment" "core-contributor-iam-assignments" {
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Contributor"
   principal_id         = azuread_group.core-contributors-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
 
 resource "azurerm_role_assignment" "core-readers-iam-assignments" {
   scope                = azurerm_resource_group.azureResourceGroups[count.index].id
   role_definition_name = "Reader"
   principal_id         = azuread_group.core-readers-iam-group.id
-  count    = length(var.azureResourceGroups)
+  count                = length(var.azureResourceGroups)
 }
